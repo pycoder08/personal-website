@@ -15,6 +15,7 @@ POSTS = [
         "Why I'm Building This Site From Scratch",
         "2026-06-02",
         "June 2, 2026",
+        "Process",
         "Instead of using a template, I decided to hand-write my own HTML, "
         "CSS, and a tiny Flask backend. Here's why I think the slower "
         "route is actually the faster one.",
@@ -39,6 +40,7 @@ POSTS = [
         "My First Real SQL Query (And Why It Didn't Work)",
         "2026-06-14",
         "June 14, 2026",
+        "SQL",
         "I finally connected Flask to a real SQLite database, and of "
         "course my very first query returned nothing. Here's what went "
         "wrong and what finally fixed it.",
@@ -64,6 +66,7 @@ POSTS = [
         "Designing a Grid That Doesn't Look Like a Spreadsheet",
         "2026-06-27",
         "June 27, 2026",
+        "Design",
         "My first pass at the portfolio page was technically a grid, but "
         "it looked like a table of contents. Here's how a bit of spacing "
         "and a hover effect changed everything.",
@@ -89,6 +92,7 @@ POSTS = [
         "Turning a Hardcoded List Into a Database Table",
         "2026-07-09",
         "July 9, 2026",
+        "SQL",
         "The portfolio page used to be a wall of copy-pasted HTML. Moving "
         "the projects into a database table meant one new project is now "
         "one new row, not one new block of markup.",
@@ -112,6 +116,7 @@ POSTS = [
         "What 'Add Post' Actually Does Behind the Scenes",
         "2026-07-18",
         "July 18, 2026",
+        "Backend",
         "This post exists because the form on /blog/new works now. Here's "
         "a walkthrough of what happens between clicking Publish and seeing "
         "the new post show up in the feed.",
@@ -138,6 +143,7 @@ POSTS = [
         "Giving the Videos Page an Actual Purpose",
         "2026-07-24",
         "July 24, 2026",
+        "Design",
         "The videos page sat as a single 'coming later' sentence for "
         "weeks. Here's how I turned it into a YouTube-style grid without "
         "hosting a single real video file.",
@@ -252,6 +258,7 @@ def main():
             title TEXT NOT NULL,
             date_iso TEXT NOT NULL,
             date_display TEXT NOT NULL,
+            tag TEXT NOT NULL,
             excerpt TEXT NOT NULL,
             body TEXT NOT NULL
         );
@@ -269,8 +276,8 @@ def main():
 
     cursor.executemany(
         """
-        INSERT INTO posts (title, date_iso, date_display, excerpt, body)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO posts (title, date_iso, date_display, tag, excerpt, body)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
         POSTS,
     )

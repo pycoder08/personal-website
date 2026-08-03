@@ -88,6 +88,18 @@ VIDEOS = [
 ]
 
 
+def get_all_tags():
+    connection = get_db_connection()
+    tags = [
+        row["tag"]
+        for row in connection.execute(
+            "SELECT DISTINCT tag FROM posts ORDER BY tag"
+        ).fetchall()
+    ]
+    connection.close()
+    return tags
+
+
 def format_display_date(date_iso):
     """Turn '2026-07-18' into 'July 18, 2026' without relying on
     platform-specific strftime flags (Windows doesn't support %-d)."""
@@ -122,12 +134,22 @@ def portfolio():
 
 @app.route("/blog")
 def blog_list():
+    selected_tag = request.args.get("tag", "").strip()
+
     connection = get_db_connection()
-    posts = connection.execute(
-        "SELECT * FROM posts ORDER BY date_iso DESC"
-    ).fetchall()
+    if selected_tag:
+        posts = connection.execute(
+            "SELECT * FROM posts WHERE tag = ? ORDER BY date_iso DESC",
+            (selected_tag,),
+        ).fetchall()
+    else:
+        posts = connection.execute(
+            "SELECT * FROM posts ORDER BY date_iso DESC"
+        ).fetchall()
     connection.close()
-    return render_template("blog_list.html", posts=posts)
+    return render_template(
+        "blog_list.html", posts=posts, tags=get_all_tags(), selected_tag=selected_tag
+    )
 
 
 @app.route("/blog/new", methods=["GET", "POST"])
@@ -135,11 +157,12 @@ def blog_new():
     if request.method == "POST":
         title = request.form.get("title", "").strip()
         date_iso = request.form.get("date", "").strip()
+        tag = request.form.get("tag", "").strip()
         excerpt = request.form.get("excerpt", "").strip()
         body = request.form.get("body", "").strip()
 
         error = None
-        if not title or not date_iso or not excerpt or not body:
+        if not title or not date_iso or not tag or not excerpt or not body:
             error = "Please fill out every field before publishing."
         else:
             try:
@@ -148,21 +171,23 @@ def blog_new():
                 error = "That date doesn't look right -- please use the date picker."
 
         if error:
-            return render_template("blog_new.html", error=error, form=request.form)
+            return render_template(
+                "blog_new.html", error=error, form=request.form, tags=get_all_tags()
+            )
 
         connection = get_db_connection()
         connection.execute(
             """
-            INSERT INTO posts (title, date_iso, date_display, excerpt, body)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO posts (title, date_iso, date_display, tag, excerpt, body)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (title, date_iso, date_display, excerpt, body),
+            (title, date_iso, date_display, tag, excerpt, body),
         )
         connection.commit()
         connection.close()
         return redirect(url_for("blog_list"))
 
-    return render_template("blog_new.html", error=None, form={})
+    return render_template("blog_new.html", error=None, form={}, tags=get_all_tags())
 
 
 @app.route("/blog/<int:post_id>")

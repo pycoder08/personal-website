@@ -13,16 +13,31 @@
   </section>
 
   <section class="section">
+    <div class="tag-filters">
+      <a class="tag-pill {{ 'active' if not selected_tag }}" href="{{ url_for('blog_list') }}">All</a>
+      {% for tag in tags %}
+      <a class="tag-pill {{ 'active' if tag == selected_tag }}" href="{{ url_for('blog_list', tag=tag) }}">{{ tag }}</a>
+      {% endfor %}
+    </div>
     <div class="post-list">
       {% for post in posts %}
       <article class="card post-preview">
-        <time class="post-date">{{ post['date_display'] }}</time>
+        <div class="post-meta">
+          <time class="post-date">{{ post['date_display'] }}</time>
+          <a class="tag-badge" href="{{ url_for('blog_list', tag=post['tag']) }}">{{ post['tag'] }}</a>
+        </div>
         <h2><a href="{{ url_for('blog_post', post_id=post['id']) }}">{{ post['title'] }}</a></h2>
         <p>{{ post['excerpt'] }}</p>
         <a class="read-more" href="{{ url_for('blog_post', post_id=post['id']) }}">Read more &rarr;</a>
       </article>
       {% else %}
-      <p class="empty-state">No posts yet. <a href="{{ url_for('blog_new') }}">Write the first one.</a></p>
+      <p class="empty-state">
+        {% if selected_tag %}
+          No posts tagged "{{ selected_tag }}" yet. <a href="{{ url_for('blog_list') }}">View all posts.</a>
+        {% else %}
+          No posts yet. <a href="{{ url_for('blog_new') }}">Write the first one.</a>
+        {% endif %}
+      </p>
       {% endfor %}
     </div>
   </section>

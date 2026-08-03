@@ -6,7 +6,10 @@
 
   <article class="section post-full">
     <a class="back-link" href="{{ url_for('blog_list') }}">&larr; Back to Blog</a>
-    <time class="post-date">{{ post['date_display'] }}</time>
+    <div class="post-meta">
+      <time class="post-date">{{ post['date_display'] }}</time>
+      <a class="tag-badge" href="{{ url_for('blog_list', tag=post['tag']) }}">{{ post['tag'] }}</a>
+    </div>
     <h1>{{ post['title'] }}</h1>
     <div class="post-body">
       {% for paragraph in post['body'].split('\n\n') %}
