@@ -11,9 +11,11 @@ you launch it from.
 """
 
 import os
+import secrets
 from datetime import datetime
+from functools import wraps
 
-from flask import Flask, abort, redirect, render_template, request, url_for
+from flask import Flask, Response, abort, redirect, render_template, request, url_for
 
 from db import get_db_connection
 
@@ -25,6 +27,42 @@ app = Flask(
     template_folder=os.path.join(PROJECT_ROOT, "templates"),
     static_folder=os.path.join(PROJECT_ROOT, "static"),
 )
+
+# ---------------------------------------------------------------------------
+# Auth: this is a single-owner personal site, so a full user/session system
+# would be overkill. All write routes (create/edit/delete for posts and
+# portfolio items) are protected with plain HTTP Basic Auth instead. Set
+# ADMIN_USERNAME / ADMIN_PASSWORD as environment variables before deploying
+# anywhere public -- "admin" / "changeme" is a local-dev-only fallback and
+# must NOT be relied on outside your own machine.
+# ---------------------------------------------------------------------------
+ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "changeme")
+
+
+def _credentials_valid(username, password):
+    # secrets.compare_digest avoids leaking timing information about how
+    # much of the supplied credentials matched.
+    return username is not None and password is not None and secrets.compare_digest(
+        username, ADMIN_USERNAME
+    ) and secrets.compare_digest(password, ADMIN_PASSWORD)
+
+
+def require_auth(view):
+    """Decorator that gates a route behind HTTP Basic Auth."""
+
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not _credentials_valid(auth.username, auth.password):
+            return Response(
+                "Authentication required to manage content on this site.",
+                401,
+                {"WWW-Authenticate": 'Basic realm="Admin Area"'},
+            )
+        return view(*args, **kwargs)
+
+    return wrapped
 
 # The videos section is presented as sample/placeholder content -- there's
 # no real video hosting behind it, so it's a simple in-memory list rather
@@ -132,6 +170,101 @@ def portfolio():
     return render_template("portfolio.html", items=items)
 
 
+@app.route("/portfolio/new", methods=["GET", "POST"])
+@require_auth
+def portfolio_new():
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        description = request.form.get("description", "").strip()
+        color_start = request.form.get("color_start", "").strip()
+        color_end = request.form.get("color_end", "").strip()
+        icon = request.form.get("icon", "").strip()
+
+        error = None
+        if not title or not description or not color_start or not color_end or not icon:
+            error = "Please fill out every field before saving."
+
+        if error:
+            return render_template(
+                "portfolio_form.html", error=error, form=request.form, item=None
+            )
+
+        connection = get_db_connection()
+        connection.execute(
+            """
+            INSERT INTO portfolio_items (title, description, color_start, color_end, icon)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (title, description, color_start, color_end, icon),
+        )
+        connection.commit()
+        connection.close()
+        return redirect(url_for("portfolio"))
+
+    return render_template("portfolio_form.html", error=None, form={}, item=None)
+
+
+@app.route("/portfolio/<int:item_id>/edit", methods=["GET", "POST"])
+@require_auth
+def portfolio_edit(item_id):
+    connection = get_db_connection()
+    item = connection.execute(
+        "SELECT * FROM portfolio_items WHERE id = ?", (item_id,)
+    ).fetchone()
+    if item is None:
+        connection.close()
+        abort(404)
+
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        description = request.form.get("description", "").strip()
+        color_start = request.form.get("color_start", "").strip()
+        color_end = request.form.get("color_end", "").strip()
+        icon = request.form.get("icon", "").strip()
+
+        error = None
+        if not title or not description or not color_start or not color_end or not icon:
+            error = "Please fill out every field before saving."
+
+        if error:
+            connection.close()
+            return render_template(
+                "portfolio_form.html", error=error, form=request.form, item=item
+            )
+
+        connection.execute(
+            """
+            UPDATE portfolio_items
+            SET title = ?, description = ?, color_start = ?, color_end = ?, icon = ?
+            WHERE id = ?
+            """,
+            (title, description, color_start, color_end, icon, item_id),
+        )
+        connection.commit()
+        connection.close()
+        return redirect(url_for("portfolio"))
+
+    connection.close()
+    form = {
+        "title": item["title"],
+        "description": item["description"],
+        "color_start": item["color_start"],
+        "color_end": item["color_end"],
+        "icon": item["icon"],
+    }
+    return render_template("portfolio_form.html", error=None, form=form, item=item)
+
+
+@app.route("/portfolio/<int:item_id>/delete", methods=["POST"])
+@require_auth
+def portfolio_delete(item_id):
+    connection = get_db_connection()
+    connection.execute("DELETE FROM portfolio_items WHERE id = ?", (item_id,))
+    connection.commit()
+    connection.close()
+    return redirect(url_for("portfolio"))
+
+
 @app.route("/blog")
 def blog_list():
     selected_tag = request.args.get("tag", "").strip()
@@ -153,6 +286,7 @@ def blog_list():
 
 
 @app.route("/blog/new", methods=["GET", "POST"])
+@require_auth
 def blog_new():
     if request.method == "POST":
         title = request.form.get("title", "").strip()
@@ -172,7 +306,11 @@ def blog_new():
 
         if error:
             return render_template(
-                "blog_new.html", error=error, form=request.form, tags=get_all_tags()
+                "blog_new.html",
+                error=error,
+                form=request.form,
+                tags=get_all_tags(),
+                post=None,
             )
 
         connection = get_db_connection()
@@ -187,7 +325,9 @@ def blog_new():
         connection.close()
         return redirect(url_for("blog_list"))
 
-    return render_template("blog_new.html", error=None, form={}, tags=get_all_tags())
+    return render_template(
+        "blog_new.html", error=None, form={}, tags=get_all_tags(), post=None
+    )
 
 
 @app.route("/blog/<int:post_id>")
@@ -200,6 +340,84 @@ def blog_post(post_id):
     if post is None:
         abort(404)
     return render_template("blog_post.html", post=post)
+
+
+@app.route("/blog/<int:post_id>/edit", methods=["GET", "POST"])
+@require_auth
+def blog_edit(post_id):
+    connection = get_db_connection()
+    post = connection.execute(
+        "SELECT * FROM posts WHERE id = ?", (post_id,)
+    ).fetchone()
+    if post is None:
+        connection.close()
+        abort(404)
+
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        date_iso = request.form.get("date", "").strip()
+        tag = request.form.get("tag", "").strip()
+        excerpt = request.form.get("excerpt", "").strip()
+        body = request.form.get("body", "").strip()
+
+        error = None
+        if not title or not date_iso or not tag or not excerpt or not body:
+            error = "Please fill out every field before saving."
+        else:
+            try:
+                date_display = format_display_date(date_iso)
+            except ValueError:
+                error = "That date doesn't look right -- please use the date picker."
+
+        if error:
+            connection.close()
+            return render_template(
+                "blog_new.html",
+                error=error,
+                form=request.form,
+                tags=get_all_tags(),
+                post=post,
+            )
+
+        connection.execute(
+            """
+            UPDATE posts
+            SET title = ?, date_iso = ?, date_display = ?, tag = ?, excerpt = ?, body = ?
+            WHERE id = ?
+            """,
+            (title, date_iso, date_display, tag, excerpt, body, post_id),
+        )
+        connection.commit()
+        connection.close()
+        return redirect(url_for("blog_post", post_id=post_id))
+
+    connection.close()
+    form = {
+        "title": post["title"],
+        "date": post["date_iso"],
+        "tag": post["tag"],
+        "excerpt": post["excerpt"],
+        "body": post["body"],
+    }
+    return render_template(
+        "blog_new.html", error=None, form=form, tags=get_all_tags(), post=post
+    )
+
+
+@app.route("/blog/<int:post_id>/delete", methods=["POST"])
+@require_auth
+def blog_delete(post_id):
+    connection = get_db_connection()
+    post = connection.execute(
+        "SELECT id FROM posts WHERE id = ?", (post_id,)
+    ).fetchone()
+    if post is None:
+        connection.close()
+        abort(404)
+    connection.execute("DELETE FROM posts WHERE id = ?", (post_id,))
+    connection.commit()
+    connection.close()
+    return redirect(url_for("blog_list"))
 
 
 @app.route("/videos")

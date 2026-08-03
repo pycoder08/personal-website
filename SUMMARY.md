@@ -51,24 +51,51 @@ tables from scratch.
 
 ## Routes
 
-| Route | Method | What it does |
-|---|---|---|
-| `/` | GET | Home page: hero, about blurb, 3 featured projects, 3 recent posts |
-| `/portfolio` | GET | Full portfolio grid, read from the `portfolio_items` table |
-| `/blog` | GET | Full blog feed, read from the `posts` table, newest first |
-| `/blog/<id>` | GET | Full text of one post; 404 if the id doesn't exist |
-| `/blog/new` | GET | The "add post" form |
-| `/blog/new` | POST | Validates the fields, inserts a new row (parameterized query), redirects to `/blog` |
-| `/videos` | GET | Video grid (sample data defined directly in `app.py`, not a DB table) |
-| `/videos/<id>` | GET | Single video detail placeholder page |
+| Route | Method | Auth? | What it does |
+|---|---|---|---|
+| `/` | GET | No | Home page: hero, about blurb, 3 featured projects, 3 recent posts |
+| `/portfolio` | GET | No | Full portfolio grid, read from the `portfolio_items` table |
+| `/portfolio/new` | GET | Yes | The "add project" form |
+| `/portfolio/new` | POST | Yes | Validates the fields, inserts a new row (parameterized query), redirects to `/portfolio` |
+| `/portfolio/<id>/edit` | GET | Yes | The "edit project" form, pre-filled from the existing row; 404 if the id doesn't exist |
+| `/portfolio/<id>/edit` | POST | Yes | Validates the fields, updates the row (parameterized query), redirects to `/portfolio` |
+| `/portfolio/<id>/delete` | POST | Yes | Deletes the row (parameterized query), redirects to `/portfolio` |
+| `/blog` | GET | No | Full blog feed, read from the `posts` table, newest first; supports `?tag=X` filtering and shows the tag pill bar |
+| `/blog/<id>` | GET | No | Full text of one post; 404 if the id doesn't exist |
+| `/blog/new` | GET | Yes | The "add post" form (includes the tag field + datalist of existing tags) |
+| `/blog/new` | POST | Yes | Validates the fields, inserts a new row (parameterized query), redirects to `/blog` |
+| `/blog/<id>/edit` | GET | Yes | The "edit post" form, pre-filled from the existing row (same template as "add post"); 404 if the id doesn't exist |
+| `/blog/<id>/edit` | POST | Yes | Validates the fields, updates the row (parameterized query), redirects to the post |
+| `/blog/<id>/delete` | POST | Yes | Deletes the row (parameterized query), redirects to `/blog` |
+| `/videos` | GET | No | Video grid (sample data defined directly in `app.py`, not a DB table) |
+| `/videos/<id>` | GET | No | Single video detail placeholder page |
+
+### Logging in
+
+The "Yes" routes above are protected with plain HTTP Basic Auth (no
+sessions or user accounts -- this is a single-owner site). Your browser
+will prompt for a username/password the first time you hit one of them
+(e.g. clicking "+ New Post", "Edit", or "Delete").
+
+Default local-dev credentials (only valid until you set real env vars):
+
+```
+username: admin
+password: changeme
+```
+
+Override them by setting `ADMIN_USERNAME` and `ADMIN_PASSWORD` as
+environment variables before starting the server -- required before
+deploying this anywhere public.
 
 ## Database schema
 
-**posts** -- `id, title, date_iso, date_display, excerpt, body`
+**posts** -- `id, title, date_iso, date_display, tag, excerpt, body`
 `date_iso` (e.g. `2026-07-18`) is used for sorting; `date_display`
 (e.g. `July 18, 2026`) is what's shown on the page. The add-post form
 only asks for one date field (a date picker) -- the app converts it to
-both formats for you.
+both formats for you. `tag` (e.g. `SQL`, `Design`) powers the pill-style
+filter bar on `/blog` and `/blog?tag=X`.
 
 **portfolio_items** -- `id, title, description, color_start, color_end, icon`
 Each project renders as a card with a CSS gradient (`color_start` to

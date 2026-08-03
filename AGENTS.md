@@ -45,6 +45,20 @@ build step. Dependencies are managed via a `venv/` at the project root
 - Match the existing CSS design system (custom properties in
   `static/css/style.css`) rather than introducing new ad-hoc colors/spacing.
 
+## Auth for write routes
+
+All create/edit/delete routes (`/blog/new`, `/blog/<id>/edit`,
+`/blog/<id>/delete`, `/portfolio/new`, `/portfolio/<id>/edit`,
+`/portfolio/<id>/delete`) are protected by plain HTTP Basic Auth (see
+`require_auth` in `backend/app.py`) -- no sessions, JWTs, or user table,
+since this is a single-owner personal site. All read-only routes stay
+public.
+
+Credentials come from the `ADMIN_USERNAME` / `ADMIN_PASSWORD` environment
+variables, with a local-dev-only fallback of `admin` / `changeme` baked
+into `app.py`. **That fallback must be overridden with real env vars
+before this app is ever deployed anywhere public.**
+
 ## Running it
 
 From this folder:

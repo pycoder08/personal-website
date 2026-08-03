@@ -186,6 +186,34 @@ code {
   color: var(--primary);
 }
 
+.btn-sm {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8rem;
+}
+
+.btn-danger {
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.btn-danger:hover {
+  background: var(--accent);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.inline-form {
+  display: inline-flex;
+}
+
 /* =========================================================
    Header / nav
    ========================================================= */

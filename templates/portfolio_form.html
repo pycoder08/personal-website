@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit Project' if item else 'New Project' }} -- Muhammad Conn{% endblock %}
+
+{% block content %}
+
+  <section class="page-heading">
+    <h1>{{ 'Edit Project' if item else 'Add a New Project' }}</h1>
+    {% if item %}
+    <p>Updates the row for this project in the <code>portfolio_items</code>
+       table via a parameterized SQL query.</p>
+    {% else %}
+    <p>Fills out a row in the <code>portfolio_items</code> table via a
+       parameterized SQL query and redirects back to the portfolio once
+       it's saved.</p>
+    {% endif %}
+  </section>
+
+  <section class="section form-section">
+    {% if error %}
+    <div class="form-error">{{ error }}</div>
+    {% endif %}
+
+    <form class="post-form" method="POST" action="{{ url_for('portfolio_edit', item_id=item['id']) if item else url_for('portfolio_new') }}">
+      <label for="title">Title</label>
+      <input type="text" id="title" name="title" placeholder="Project name" value="{{ form.get('title', '') if form else '' }}" required>
+
+      <label for="description">Description</label>
+      <textarea id="description" name="description" rows="3" placeholder="A short description of the project" required>{{ form.get('description', '') if form else '' }}</textarea>
+
+      <label for="color_start">Gradient Start Color</label>
+      <input type="text" id="color_start" name="color_start" placeholder="#6366f1" value="{{ form.get('color_start', '') if form else '' }}" required>
+
+      <label for="color_end">Gradient End Color</label>
+      <input type="text" id="color_end" name="color_end" placeholder="#8b5cf6" value="{{ form.get('color_end', '') if form else '' }}" required>
+
+      <label for="icon">Icon (emoji)</label>
+      <input type="text" id="icon" name="icon" placeholder="e.g. 🌐" value="{{ form.get('icon', '') if form else '' }}" required>
+
+      <div class="form-actions">
+        <a class="btn btn-ghost" href="{{ url_for('portfolio') }}">Cancel</a>
+        <button class="btn btn-primary" type="submit">{{ 'Save Changes' if item else 'Add Project' }}</button>
+      </div>
+    </form>
+  </section>
+
+{% endblock %}

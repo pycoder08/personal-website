@@ -1,13 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}New Post -- Muhammad Conn{% endblock %}
+{% block title %}{{ 'Edit Post' if post else 'New Post' }} -- Muhammad Conn{% endblock %}
 
 {% block content %}
 
   <section class="page-heading">
-    <h1>Write a New Post</h1>
+    <h1>{{ 'Edit Post' if post else 'Write a New Post' }}</h1>
+    {% if post %}
+    <p>Updates the row for this post in the <code>posts</code> table via a
+       parameterized SQL query.</p>
+    {% else %}
     <p>Fills out a row in the <code>posts</code> table via a parameterized
        SQL query and redirects back to the blog once it's saved.</p>
+    {% endif %}
   </section>
 
   <section class="section form-section">
@@ -15,7 +20,7 @@
     <div class="form-error">{{ error }}</div>
     {% endif %}
 
-    <form class="post-form" method="POST" action="{{ url_for('blog_new') }}">
+    <form class="post-form" method="POST" action="{{ url_for('blog_edit', post_id=post['id']) if post else url_for('blog_new') }}">
       <label for="title">Title</label>
       <input type="text" id="title" name="title" placeholder="What's this post about?" value="{{ form.get('title', '') if form else '' }}" required>
 
@@ -37,8 +42,8 @@
       <textarea id="body" name="body" rows="10" placeholder="The full post. Separate paragraphs with a blank line." required>{{ form.get('body', '') if form else '' }}</textarea>
 
       <div class="form-actions">
-        <a class="btn btn-ghost" href="{{ url_for('blog_list') }}">Cancel</a>
-        <button class="btn btn-primary" type="submit">Publish Post</button>
+        <a class="btn btn-ghost" href="{{ url_for('blog_post', post_id=post['id']) if post else url_for('blog_list') }}">Cancel</a>
+        <button class="btn btn-primary" type="submit">{{ 'Save Changes' if post else 'Publish Post' }}</button>
       </div>
     </form>
   </section>

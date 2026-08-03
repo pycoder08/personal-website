@@ -29,6 +29,12 @@
         <h2><a href="{{ url_for('blog_post', post_id=post['id']) }}">{{ post['title'] }}</a></h2>
         <p>{{ post['excerpt'] }}</p>
         <a class="read-more" href="{{ url_for('blog_post', post_id=post['id']) }}">Read more &rarr;</a>
+        <div class="card-actions">
+          <a class="btn btn-ghost btn-sm" href="{{ url_for('blog_edit', post_id=post['id']) }}">Edit</a>
+          <form class="inline-form" method="POST" action="{{ url_for('blog_delete', post_id=post['id']) }}" onsubmit="return confirm('Delete this post? This cannot be undone.');">
+            <button class="btn btn-danger btn-sm" type="submit">Delete</button>
+          </form>
+        </div>
       </article>
       {% else %}
       <p class="empty-state">
