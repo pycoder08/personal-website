@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Muhammad Conn -- Home{% endblock %}
+
+{% block content %}
+
+  <section class="hero">
+    <div class="avatar" aria-hidden="true">MC</div>
+    <h1>Hi, I'm Muhammad.</h1>
+    <p class="hero-sub">
+      I build small web apps and write about what I learn along the way --
+      this site is both my portfolio and my notebook.
+    </p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="{{ url_for('portfolio') }}">View Portfolio</a>
+      <a class="btn btn-ghost" href="{{ url_for('blog_list') }}">Read the Blog</a>
+    </div>
+  </section>
+
+  <section class="section about">
+    <h2>About Me</h2>
+    <p>
+      I'm a self-taught developer working through Python, SQL, and web
+      fundamentals from the ground up. I like building small, real projects
+      instead of following tutorials to the letter -- this site is one of
+      them: a hand-written Flask app backed by a real SQLite database,
+      designed to look like something you'd actually want to visit.
+    </p>
+  </section>
+
+  {% if featured_items %}
+  <section class="section">
+    <div class="section-header">
+      <h2>Featured Work</h2>
+      <a class="see-all" href="{{ url_for('portfolio') }}">See all projects &rarr;</a>
+    </div>
+    <div class="portfolio-grid">
+      {% for item in featured_items %}
+      <article class="card portfolio-card">
+        <div class="thumb" style="background: linear-gradient(135deg, {{ item['color_start'] }}, {{ item['color_end'] }});">
+          <span class="thumb-icon">{{ item['icon'] }}</span>
+        </div>
+        <div class="card-body">
+          <h3>{{ item['title'] }}</h3>
+          <p>{{ item['description'] }}</p>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if recent_posts %}
+  <section class="section">
+    <div class="section-header">
+      <h2>Recent Posts</h2>
+      <a class="see-all" href="{{ url_for('blog_list') }}">See all posts &rarr;</a>
+    </div>
+    <div class="post-list">
+      {% for post in recent_posts %}
+      <article class="card post-preview">
+        <time class="post-date">{{ post['date_display'] }}</time>
+        <h3><a href="{{ url_for('blog_post', post_id=post['id']) }}">{{ post['title'] }}</a></h3>
+        <p>{{ post['excerpt'] }}</p>
+        <a class="read-more" href="{{ url_for('blog_post', post_id=post['id']) }}">Read more &rarr;</a>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+{% endblock %}

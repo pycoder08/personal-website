@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Muhammad Conn{% endblock %}</title>
+  <meta name="description" content="Muhammad Conn's personal site -- portfolio, blog, and videos.">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="logo" href="{{ url_for('home') }}">
+        <span class="logo-mark">MC</span>
+        <span class="logo-text">Muhammad Conn</span>
+      </a>
+      <nav>
+        <a href="{{ url_for('home') }}" class="{{ 'active' if request.endpoint == 'home' else '' }}">Home</a>
+        <a href="{{ url_for('portfolio') }}" class="{{ 'active' if request.endpoint == 'portfolio' else '' }}">Portfolio</a>
+        <a href="{{ url_for('blog_list') }}" class="{{ 'active' if request.endpoint in ['blog_list', 'blog_post', 'blog_new'] else '' }}">Blog</a>
+        <a href="{{ url_for('videos') }}" class="{{ 'active' if request.endpoint in ['videos', 'video_detail'] else '' }}">Videos</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p>&copy; 2026 Muhammad Conn. Built by hand, one route at a time.</p>
+      <div class="footer-links">
+        <a href="{{ url_for('home') }}">Home</a>
+        <a href="{{ url_for('portfolio') }}">Portfolio</a>
+        <a href="{{ url_for('blog_list') }}">Blog</a>
+        <a href="{{ url_for('videos') }}">Videos</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

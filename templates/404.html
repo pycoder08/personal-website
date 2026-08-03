@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}Page Not Found -- Muhammad Conn{% endblock %}
+
+{% block content %}
+
+  <section class="section not-found">
+    <p class="not-found-code">404</p>
+    <h1>Page not found</h1>
+    <p>Whatever you were looking for isn't here.</p>
+    <a class="btn btn-primary" href="{{ url_for('home') }}">Back to Home</a>
+  </section>
+
+{% endblock %}

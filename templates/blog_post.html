@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}{{ post['title'] }} -- Muhammad Conn{% endblock %}
+
+{% block content %}
+
+  <article class="section post-full">
+    <a class="back-link" href="{{ url_for('blog_list') }}">&larr; Back to Blog</a>
+    <time class="post-date">{{ post['date_display'] }}</time>
+    <h1>{{ post['title'] }}</h1>
+    <div class="post-body">
+      {% for paragraph in post['body'].split('\n\n') %}
+      <p>{{ paragraph }}</p>
+      {% endfor %}
+    </div>
+  </article>
+
+{% endblock %}

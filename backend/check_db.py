@@ -1,12 +1,15 @@
-import sqlite3
+"""Quick sanity check: print every row in both tables."""
 
-connection = sqlite3.connect("blog.db")
-cursor = connection.cursor()
+from db import get_db_connection
 
-cursor.execute("SELECT * FROM posts")
-rows = cursor.fetchall()
+connection = get_db_connection()
 
-for row in rows:
-    print(row)
+print("== posts ==")
+for row in connection.execute("SELECT id, title, date_display FROM posts ORDER BY date_iso DESC"):
+    print(dict(row))
+
+print("\n== portfolio_items ==")
+for row in connection.execute("SELECT id, title FROM portfolio_items ORDER BY id"):
+    print(dict(row))
 
 connection.close()

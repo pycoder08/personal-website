@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Videos -- Muhammad Conn{% endblock %}
+
+{% block content %}
+
+  <section class="page-heading">
+    <h1>Videos</h1>
+    <p>A YouTube-style shelf of sample videos. There's no real footage
+       behind these yet -- the thumbnails are drawn with plain CSS -- but
+       the layout is ready for whenever real videos exist.</p>
+  </section>
+
+  <section class="section">
+    <div class="video-grid">
+      {% for video in videos %}
+      <a class="card video-card" href="{{ url_for('video_detail', video_id=video['id']) }}">
+        <div class="video-thumb" style="background: linear-gradient(135deg, {{ video['color_start'] }}, {{ video['color_end'] }});">
+          <span class="play-icon" aria-hidden="true">&#9658;</span>
+          <span class="video-duration">{{ video['duration'] }}</span>
+        </div>
+        <div class="card-body">
+          <h3>{{ video['title'] }}</h3>
+          <p>{{ video['description'] }}</p>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+
+{% endblock %}

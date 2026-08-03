@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}{{ video['title'] }} -- Muhammad Conn{% endblock %}
+
+{% block content %}
+
+  <article class="section video-full">
+    <a class="back-link" href="{{ url_for('videos') }}">&larr; Back to Videos</a>
+
+    <div class="video-player" style="background: linear-gradient(135deg, {{ video['color_start'] }}, {{ video['color_end'] }});">
+      <span class="play-icon play-icon-large" aria-hidden="true">&#9658;</span>
+      <span class="video-duration">{{ video['duration'] }}</span>
+    </div>
+
+    <h1>{{ video['title'] }}</h1>
+    <p class="video-description">{{ video['description'] }}</p>
+  </article>
+
+{% endblock %}
