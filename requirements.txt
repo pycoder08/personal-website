@@ -1,2 +1,5 @@
+# Only direct imports are pinned here -- transitive dependencies (Werkzeug,
+# Jinja2, click, etc.) are resolved automatically from Flask's own
+# requirements, so they don't need to be listed separately.
 Flask==3.1.3
 waitress==3.0.2
