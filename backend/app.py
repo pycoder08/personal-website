@@ -1,8 +1,8 @@
-"""Flask app for the personal site.
+r"""Flask app for the personal site.
 
 Run it with:
 
-    venv/Scripts/python backend/app.py
+    venv\Scripts\python backend\app.py
 
 from the project root (personal-website-full/). Templates live in
 ../templates and static assets (css, images) live in ../static, both
@@ -531,4 +531,10 @@ def file_too_large(_error):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    debug_enabled = os.environ.get("FLASK_DEBUG", "1").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    app.run(debug=debug_enabled)

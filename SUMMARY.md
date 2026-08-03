@@ -30,17 +30,32 @@ personal-website-full/
 ├── static/
 │   ├── css/style.css             The full stylesheet (design system + all pages)
 │   └── images/portfolio/         Uploaded portfolio screenshots (git-tracked, real content)
-└── venv/                 Existing virtual environment (Flask already installed)
+├── requirements.txt      Pinned direct runtime dependencies
+├── wsgi.py               Production entry point (credentials required, debug off)
+└── venv/                 Local virtual environment
 ```
 
-## How to run it
+## Installation
 
 From the `personal-website-full` folder:
 
 ```
+venv\Scripts\python -m pip install -r requirements.txt
 venv\Scripts\python backend\init_db.py   # (re)creates and seeds blog.db -- only needed once, or to reset
-venv\Scripts\python backend\app.py       # starts the Flask dev server
 ```
+
+`requirements.txt` contains only the direct runtime dependencies: Flask and
+the Waitress WSGI server. Pip installs their transitive dependencies.
+
+## Local development
+
+```powershell
+venv\Scripts\python backend\app.py
+```
+
+This uses Flask's development server and defaults debug mode on for the
+existing local workflow. Set `$env:FLASK_DEBUG = "0"` first when you want
+local debug mode off. Never expose the development server to visitors.
 
 Then open **http://127.0.0.1:5000/** in a browser. Press `Ctrl+C` in the
 terminal to stop the server.
@@ -48,6 +63,32 @@ terminal to stop the server.
 If you ever want to wipe your changes and start over with the original
 sample data, just re-run `init_db.py` -- it drops and recreates both
 tables from scratch.
+
+## Real deployment with Waitress
+
+Set unique admin credentials in the environment before starting the real
+server. Both variables are required: the local `admin` / `changeme` fallback
+must never be used for a deployment.
+
+```powershell
+$env:ADMIN_USERNAME = "your-private-admin-name"
+$env:ADMIN_PASSWORD = "a-long-unique-password"
+venv\Scripts\waitress-serve --host=127.0.0.1 --port=5000 wsgi:application
+```
+
+The `wsgi.py` entry point refuses to start if either credential is absent and
+forces Flask debug mode off even if `FLASK_DEBUG=1` is set. It preserves the
+existing absolute template, static, and SQLite paths. `127.0.0.1` is suitable
+behind a reverse proxy on the same machine; choose the bind address and port
+that match the actual host setup.
+
+Required production environment variables:
+
+- `ADMIN_USERNAME` -- the single site owner's Basic Auth username.
+- `ADMIN_PASSWORD` -- a long, unique Basic Auth password.
+
+`FLASK_DEBUG` controls only the direct local-development command. It has no
+effect on the Waitress production entry point.
 
 ## Routes
 
@@ -84,9 +125,9 @@ username: admin
 password: changeme
 ```
 
-Override them by setting `ADMIN_USERNAME` and `ADMIN_PASSWORD` as
-environment variables before starting the server -- required before
-deploying this anywhere public.
+Override them by setting `ADMIN_USERNAME` and `ADMIN_PASSWORD` before
+starting the local server. The production WSGI entry point requires both
+values and will not use these defaults.
 
 ## Database schema
 

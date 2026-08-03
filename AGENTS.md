@@ -17,8 +17,8 @@ project and must never be touched from here.
 
 Python 3 + Flask (Jinja2 templates) + SQLite (via the stdlib `sqlite3`
 module, no ORM). Plain HTML/CSS on the frontend — no JS framework, no
-build step. Dependencies are managed via a `venv/` at the project root
-(Flask is already installed there).
+build step. Direct runtime dependencies are pinned in `requirements.txt`
+and installed into a `venv/` at the project root.
 
 ## Structure
 
@@ -58,9 +58,9 @@ since this is a single-owner personal site. All read-only routes stay
 public.
 
 Credentials come from the `ADMIN_USERNAME` / `ADMIN_PASSWORD` environment
-variables, with a local-dev-only fallback of `admin` / `changeme` baked
-into `app.py`. **That fallback must be overridden with real env vars
-before this app is ever deployed anywhere public.**
+variables. `app.py` retains an `admin` / `changeme` fallback only for local
+development; `wsgi.py` requires both variables and will not start a real
+server with the fallback.
 
 ## Portfolio image uploads
 
@@ -96,13 +96,33 @@ file field):
 
 ## Running it
 
-From this folder:
+From this folder, install dependencies:
+
+```
+venv\Scripts\python -m pip install -r requirements.txt
+```
+
+For local development:
+
 ```
 venv\Scripts\python backend\init_db.py   # (re)creates and seeds blog.db
-venv\Scripts\python backend\app.py       # starts the dev server
+venv\Scripts\python backend\app.py       # Flask dev server; debug defaults on
 ```
-Then open `http://127.0.0.1:5000/`. See `SUMMARY.md` for the full route
-table and schema.
+
+Set `FLASK_DEBUG=0` to disable local debug mode. Never expose Flask's
+development server publicly.
+
+For a real deployment, set non-default `ADMIN_USERNAME` and
+`ADMIN_PASSWORD`, initialize the database once, and run Waitress:
+
+```
+venv\Scripts\waitress-serve --host=127.0.0.1 --port=5000 wsgi:application
+```
+
+`wsgi.py` refuses to start without both admin variables and forces debug
+off regardless of `FLASK_DEBUG`. Choose the bind address and port appropriate
+for the host or reverse proxy. See `SUMMARY.md` for the complete deployment
+instructions, route table, and schema.
 
 ## Multi-agent branches (if in use)
 
