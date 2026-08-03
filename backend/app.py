@@ -241,17 +241,22 @@ def portfolio_new():
 
         image_filename = save_portfolio_image(image_file) if has_upload else None
 
-        connection = get_db_connection()
-        connection.execute(
-            """
-            INSERT INTO portfolio_items
-                (title, description, color_start, color_end, icon, image_filename)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (title, description, color_start, color_end, icon, image_filename),
-        )
-        connection.commit()
-        connection.close()
+        try:
+            connection = get_db_connection()
+            connection.execute(
+                """
+                INSERT INTO portfolio_items
+                    (title, description, color_start, color_end, icon, image_filename)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (title, description, color_start, color_end, icon, image_filename),
+            )
+            connection.commit()
+            connection.close()
+        except Exception:
+            # Don't leave an orphaned file on disk if the database write failed.
+            delete_portfolio_image(image_filename)
+            raise
         return redirect(url_for("portfolio"))
 
     return render_template("portfolio_form.html", error=None, form={}, item=None)
@@ -292,21 +297,31 @@ def portfolio_edit(item_id):
                 "portfolio_form.html", error=error, form=request.form, item=item
             )
 
-        image_filename = item["image_filename"]
+        old_image_filename = item["image_filename"]
+        image_filename = old_image_filename
         if has_upload:
-            delete_portfolio_image(item["image_filename"])
             image_filename = save_portfolio_image(image_file)
 
-        connection.execute(
-            """
-            UPDATE portfolio_items
-            SET title = ?, description = ?, color_start = ?, color_end = ?, icon = ?, image_filename = ?
-            WHERE id = ?
-            """,
-            (title, description, color_start, color_end, icon, image_filename, item_id),
-        )
-        connection.commit()
-        connection.close()
+        try:
+            connection.execute(
+                """
+                UPDATE portfolio_items
+                SET title = ?, description = ?, color_start = ?, color_end = ?, icon = ?, image_filename = ?
+                WHERE id = ?
+                """,
+                (title, description, color_start, color_end, icon, image_filename, item_id),
+            )
+            connection.commit()
+            connection.close()
+        except Exception:
+            # Don't leave an orphaned new file on disk if the database write failed.
+            if has_upload:
+                delete_portfolio_image(image_filename)
+            raise
+
+        # Only remove the old file once the new row has actually been saved.
+        if has_upload:
+            delete_portfolio_image(old_image_filename)
         return redirect(url_for("portfolio"))
 
     connection.close()
