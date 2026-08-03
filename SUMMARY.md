@@ -28,8 +28,8 @@ personal-website-full/
 │   ├── video_detail.html Single video detail page
 │   └── 404.html          Not-found page
 ├── static/
-│   ├── css/style.css     The full stylesheet (design system + all pages)
-│   └── images/           (empty -- everything uses CSS-drawn placeholders)
+│   ├── css/style.css             The full stylesheet (design system + all pages)
+│   └── images/portfolio/         Uploaded portfolio screenshots (git-tracked, real content)
 └── venv/                 Existing virtual environment (Flask already installed)
 ```
 
@@ -97,9 +97,37 @@ only asks for one date field (a date picker) -- the app converts it to
 both formats for you. `tag` (e.g. `SQL`, `Design`) powers the pill-style
 filter bar on `/blog` and `/blog?tag=X`.
 
-**portfolio_items** -- `id, title, description, color_start, color_end, icon`
-Each project renders as a card with a CSS gradient (`color_start` to
-`color_end`) and an emoji icon standing in for a real screenshot.
+**portfolio_items** -- `id, title, description, color_start, color_end, icon, image_filename`
+Each project renders as a card. If `image_filename` is set, the card shows
+a real uploaded screenshot (`<img src="/static/images/portfolio/<filename>">`);
+if it's `NULL` (the default for seed data, and for any row where the upload
+was skipped), the card falls back to a CSS gradient (`color_start` to
+`color_end`) with an emoji icon, exactly like before.
+
+### Portfolio image uploads
+
+`/portfolio/new` and `/portfolio/<id>/edit` accept an optional file upload
+(the form is `multipart/form-data`, field name `image`). Rules enforced in
+`backend/app.py`:
+
+- Allowed extensions: `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp` -- checked
+  against the actual file extension, not the browser-supplied MIME type.
+  Anything else is rejected with a normal form validation error (same
+  pattern as the "please fill out every field" error), no crash.
+- Max size: **5MB** per upload, enforced via Flask's `MAX_CONTENT_LENGTH`.
+  Going over shows a friendly `413.html` page instead of a raw error.
+- Uploaded files are never saved under their original name. Each one is
+  passed through `werkzeug.utils.secure_filename` and then renamed to a
+  generated `uuid4` + extension before being written to
+  `static/images/portfolio/`, so two uploads can never collide and a
+  crafted filename can't escape that folder.
+- Editing a project with a new file replaces the old image (the old file
+  is deleted from disk); leaving the file field empty on edit keeps
+  whatever image (or lack of one) the project already had.
+- Deleting a project also deletes its image file from disk, if it has one.
+- `static/images/portfolio/` is committed to git (with a `.gitkeep` so the
+  folder exists even before any upload) -- unlike `blog.db`, uploaded
+  images are real content, not generated data, so they aren't git-ignored.
 
 The videos section is *not* in the database -- it's a small Python list
 inside `app.py`, since there's no real video content or hosting behind it.
@@ -113,9 +141,10 @@ placeholders for `<img>`/`<video>` tags is a small, contained change.
   colors/spacing can be tweaked from one place.
 - Includes a basic dark-mode variant via `prefers-color-scheme: dark`.
 - Responsive down to mobile widths (nav wraps, form padding shrinks, etc.)
-- Portfolio and video "thumbnails" are pure CSS gradients plus an
-  emoji/icon -- no image files needed, but the markup is ready to swap in
-  real images later.
+- Portfolio thumbnails now support real uploaded screenshots (see
+  "Portfolio image uploads" above), falling back to a CSS gradient plus
+  emoji/icon when no image has been uploaded. Video "thumbnails" are still
+  pure CSS gradients plus an icon -- no video hosting exists yet.
 
 ## Verified before handoff
 

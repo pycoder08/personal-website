@@ -21,7 +21,7 @@
     <div class="form-error">{{ error }}</div>
     {% endif %}
 
-    <form class="post-form" method="POST" action="{{ url_for('portfolio_edit', item_id=item['id']) if item else url_for('portfolio_new') }}">
+    <form class="post-form" method="POST" action="{{ url_for('portfolio_edit', item_id=item['id']) if item else url_for('portfolio_new') }}" enctype="multipart/form-data">
       <label for="title">Title</label>
       <input type="text" id="title" name="title" placeholder="Project name" value="{{ form.get('title', '') if form else '' }}" required>
 
@@ -36,6 +36,18 @@
 
       <label for="icon">Icon (emoji)</label>
       <input type="text" id="icon" name="icon" placeholder="e.g. 🌐" value="{{ form.get('icon', '') if form else '' }}" required>
+
+      <label for="image">Project Image (optional)</label>
+      {% if item and item['image_filename'] %}
+      <div class="current-image-preview">
+        <img class="thumb-img" src="{{ url_for('static', filename='images/portfolio/' + item['image_filename']) }}" alt="Current image for {{ item['title'] }}">
+      </div>
+      <p class="form-hint">Currently using the image above. Upload a new file to replace it, or leave this blank to keep it.</p>
+      {% else %}
+      <p class="form-hint">If you skip this, the gradient and icon above are used as the card thumbnail instead.</p>
+      {% endif %}
+      <input type="file" id="image" name="image" accept=".png,.jpg,.jpeg,.gif,.webp,image/png,image/jpeg,image/gif,image/webp">
+      <p class="form-hint">PNG, JPG, GIF, or WEBP -- 5MB max.</p>
 
       <div class="form-actions">
         <a class="btn btn-ghost" href="{{ url_for('portfolio') }}">Cancel</a>

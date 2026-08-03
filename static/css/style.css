@@ -380,6 +380,12 @@ code {
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.2));
 }
 
+.thumb-img {
+  width: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 /* =========================================================
    Blog list
    ========================================================= */
@@ -579,6 +585,22 @@ code {
   justify-content: flex-end;
   gap: 0.75rem;
   margin-top: 1.5rem;
+}
+
+.form-hint {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0.2rem 0 0;
+}
+
+.current-image-preview {
+  margin-top: 0.3rem;
+}
+
+.current-image-preview .thumb-img {
+  height: 150px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
 }
 
 /* =========================================================

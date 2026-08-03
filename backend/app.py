@@ -12,10 +12,12 @@ you launch it from.
 
 import os
 import secrets
+import uuid
 from datetime import datetime
 from functools import wraps
 
 from flask import Flask, Response, abort, redirect, render_template, request, url_for
+from werkzeug.utils import secure_filename
 
 from db import get_db_connection
 
@@ -27,6 +29,47 @@ app = Flask(
     template_folder=os.path.join(PROJECT_ROOT, "templates"),
     static_folder=os.path.join(PROJECT_ROOT, "static"),
 )
+
+# ---------------------------------------------------------------------------
+# Portfolio image uploads: the only place in the app that accepts binary
+# file input. Uploaded files are saved under static/images/portfolio/ using
+# a freshly generated filename (never the client-supplied one) so there's
+# no path-traversal risk and no chance of two uploads colliding.
+# ---------------------------------------------------------------------------
+PORTFOLIO_IMAGE_DIR = os.path.join(PROJECT_ROOT, "static", "images", "portfolio")
+ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
+MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
+
+# Flask/Werkzeug reject any request whose body exceeds this before the view
+# function even runs, raising a 413 that's handled by the errorhandler below.
+app.config["MAX_CONTENT_LENGTH"] = MAX_IMAGE_SIZE_BYTES
+
+
+def _has_allowed_image_extension(filename):
+    """Real allowlist check against the actual file extension -- never trust
+    a client-supplied Content-Type/MIME header for this."""
+    ext = os.path.splitext(filename)[1].lower()
+    return ext in ALLOWED_IMAGE_EXTENSIONS
+
+
+def save_portfolio_image(file_storage):
+    """Save an uploaded portfolio image under a safe, collision-proof name
+    and return just the filename (what gets stored in the database)."""
+    os.makedirs(PORTFOLIO_IMAGE_DIR, exist_ok=True)
+    safe_original = secure_filename(file_storage.filename)
+    ext = os.path.splitext(safe_original)[1].lower()
+    generated_name = f"{uuid.uuid4().hex}{ext}"
+    file_storage.save(os.path.join(PORTFOLIO_IMAGE_DIR, generated_name))
+    return generated_name
+
+
+def delete_portfolio_image(filename):
+    """Remove a previously-uploaded portfolio image from disk, if present."""
+    if not filename:
+        return
+    path = os.path.join(PORTFOLIO_IMAGE_DIR, filename)
+    if os.path.isfile(path):
+        os.remove(path)
 
 # ---------------------------------------------------------------------------
 # Auth: this is a single-owner personal site, so a full user/session system
@@ -179,23 +222,33 @@ def portfolio_new():
         color_start = request.form.get("color_start", "").strip()
         color_end = request.form.get("color_end", "").strip()
         icon = request.form.get("icon", "").strip()
+        image_file = request.files.get("image")
+        has_upload = image_file is not None and image_file.filename.strip() != ""
 
         error = None
         if not title or not description or not color_start or not color_end or not icon:
             error = "Please fill out every field before saving."
+        elif has_upload and not _has_allowed_image_extension(image_file.filename):
+            error = (
+                "That image type isn't supported -- please upload a "
+                ".png, .jpg, .jpeg, .gif, or .webp file (5MB max)."
+            )
 
         if error:
             return render_template(
                 "portfolio_form.html", error=error, form=request.form, item=None
             )
 
+        image_filename = save_portfolio_image(image_file) if has_upload else None
+
         connection = get_db_connection()
         connection.execute(
             """
-            INSERT INTO portfolio_items (title, description, color_start, color_end, icon)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO portfolio_items
+                (title, description, color_start, color_end, icon, image_filename)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (title, description, color_start, color_end, icon),
+            (title, description, color_start, color_end, icon, image_filename),
         )
         connection.commit()
         connection.close()
@@ -221,10 +274,17 @@ def portfolio_edit(item_id):
         color_start = request.form.get("color_start", "").strip()
         color_end = request.form.get("color_end", "").strip()
         icon = request.form.get("icon", "").strip()
+        image_file = request.files.get("image")
+        has_upload = image_file is not None and image_file.filename.strip() != ""
 
         error = None
         if not title or not description or not color_start or not color_end or not icon:
             error = "Please fill out every field before saving."
+        elif has_upload and not _has_allowed_image_extension(image_file.filename):
+            error = (
+                "That image type isn't supported -- please upload a "
+                ".png, .jpg, .jpeg, .gif, or .webp file (5MB max)."
+            )
 
         if error:
             connection.close()
@@ -232,13 +292,18 @@ def portfolio_edit(item_id):
                 "portfolio_form.html", error=error, form=request.form, item=item
             )
 
+        image_filename = item["image_filename"]
+        if has_upload:
+            delete_portfolio_image(item["image_filename"])
+            image_filename = save_portfolio_image(image_file)
+
         connection.execute(
             """
             UPDATE portfolio_items
-            SET title = ?, description = ?, color_start = ?, color_end = ?, icon = ?
+            SET title = ?, description = ?, color_start = ?, color_end = ?, icon = ?, image_filename = ?
             WHERE id = ?
             """,
-            (title, description, color_start, color_end, icon, item_id),
+            (title, description, color_start, color_end, icon, image_filename, item_id),
         )
         connection.commit()
         connection.close()
@@ -259,9 +324,16 @@ def portfolio_edit(item_id):
 @require_auth
 def portfolio_delete(item_id):
     connection = get_db_connection()
+    item = connection.execute(
+        "SELECT image_filename FROM portfolio_items WHERE id = ?", (item_id,)
+    ).fetchone()
+    if item is None:
+        connection.close()
+        abort(404)
     connection.execute("DELETE FROM portfolio_items WHERE id = ?", (item_id,))
     connection.commit()
     connection.close()
+    delete_portfolio_image(item["image_filename"])
     return redirect(url_for("portfolio"))
 
 
@@ -436,6 +508,11 @@ def video_detail(video_id):
 @app.errorhandler(404)
 def not_found(_error):
     return render_template("404.html"), 404
+
+
+@app.errorhandler(413)
+def file_too_large(_error):
+    return render_template("413.html"), 413
 
 
 if __name__ == "__main__":

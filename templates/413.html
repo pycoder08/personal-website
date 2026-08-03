@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}File Too Large -- Muhammad Conn{% endblock %}
+
+{% block content %}
+
+  <section class="section not-found">
+    <p class="not-found-code">413</p>
+    <h1>That file is too large</h1>
+    <p>Uploaded images are limited to 5MB. Go back and try again with a
+       smaller file.</p>
+    <a class="btn btn-primary" href="{{ url_for('portfolio') }}">Back to Portfolio</a>
+  </section>
+
+{% endblock %}

@@ -269,7 +269,8 @@ def main():
             description TEXT NOT NULL,
             color_start TEXT NOT NULL,
             color_end TEXT NOT NULL,
-            icon TEXT NOT NULL
+            icon TEXT NOT NULL,
+            image_filename TEXT
         );
         """
     )

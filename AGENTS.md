@@ -31,8 +31,11 @@ build step. Dependencies are managed via a `venv/` at the project root
 - `templates/` — Jinja2 templates, all extending `base.html`.
 - `static/css/style.css` — the entire design system (CSS custom properties
   at the top control the palette/spacing).
-- `static/images/` — currently empty; portfolio/video "thumbnails" are pure
-  CSS gradients + emoji icons, not real image files.
+- `static/images/portfolio/` — uploaded portfolio screenshots (see "Portfolio
+  image uploads" below). Contains a `.gitkeep` so git tracks the folder even
+  when no images have been uploaded yet.
+- `static/images/` — video "thumbnails" are still pure CSS gradients + emoji
+  icons, not real image files (no video hosting exists yet).
 
 ## Conventions
 
@@ -58,6 +61,38 @@ Credentials come from the `ADMIN_USERNAME` / `ADMIN_PASSWORD` environment
 variables, with a local-dev-only fallback of `admin` / `changeme` baked
 into `app.py`. **That fallback must be overridden with real env vars
 before this app is ever deployed anywhere public.**
+
+## Portfolio image uploads
+
+`portfolio_items` has an `image_filename` column (nullable). When set, the
+portfolio card renders `<img src="/static/images/portfolio/<filename>">`
+instead of the CSS gradient + emoji thumbnail; when null (the default for
+old/seeded rows), the gradient + icon rendering is unchanged. This applies
+to both `templates/portfolio.html` and the "Featured Work" section of
+`templates/index.html`.
+
+Upload handling lives in `backend/app.py` (`/portfolio/new` and
+`/portfolio/<id>/edit`, both `multipart/form-data` POSTs with an `image`
+file field):
+
+- **Extension allowlist**: only `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp` are
+  accepted, checked against the real file extension -- never the
+  client-supplied Content-Type/MIME header, which can't be trusted.
+- **Max size**: 5MB, enforced via `app.config["MAX_CONTENT_LENGTH"]`. Over
+  that limit, Flask raises a 413 before the view runs, handled by a
+  friendly `templates/413.html` page (registered in `app.errorhandler(413)`)
+  instead of a raw error.
+- **Filenames**: never trust the client-supplied filename. Every upload is
+  passed through `werkzeug.utils.secure_filename` and then renamed to a
+  fresh `uuid4().hex` + original extension before being saved to
+  `static/images/portfolio/`, so uploads can't collide or path-traverse.
+- **Edit replaces, delete cleans up**: uploading a new file on `/edit`
+  deletes the old file from disk before saving the new one; leaving the
+  file field blank on edit keeps the existing image. Deleting a portfolio
+  item (`/portfolio/<id>/delete`) also deletes its image file from disk, if
+  it has one.
+- Uploaded images are real site content (not build artifacts), so
+  `static/images/portfolio/` is intentionally **not** git-ignored.
 
 ## Running it
 
