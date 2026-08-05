@@ -1,0 +1,5 @@
+# Extra dependencies needed only for running the test suite -- not needed
+# to run the app itself, so these stay out of requirements.txt (see that
+# file's comment about pinning only direct dependencies).
+-r requirements.txt
+pytest==9.1.1

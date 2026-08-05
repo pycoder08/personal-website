@@ -36,7 +36,14 @@ app = Flask(
 # a freshly generated filename (never the client-supplied one) so there's
 # no path-traversal risk and no chance of two uploads colliding.
 # ---------------------------------------------------------------------------
-PORTFOLIO_IMAGE_DIR = os.path.join(PROJECT_ROOT, "static", "images", "portfolio")
+# Tests point this at a temporary upload directory via the
+# PORTFOLIO_IMAGE_DIR environment variable (see the project root
+# conftest.py) so they never write into the real static/images/portfolio/.
+# Normal local dev and production never set that variable, so this resolves
+# to the same hardcoded folder as before.
+PORTFOLIO_IMAGE_DIR = os.environ.get(
+    "PORTFOLIO_IMAGE_DIR", os.path.join(PROJECT_ROOT, "static", "images", "portfolio")
+)
 ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 

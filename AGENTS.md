@@ -36,6 +36,8 @@ and installed into a `venv/` at the project root.
   when no images have been uploaded yet.
 - `static/images/` — video "thumbnails" are still pure CSS gradients + emoji
   icons, not real image files (no video hosting exists yet).
+- `tests/` — pytest test suite; `conftest.py` at the project root holds the
+  shared fixtures (isolated temp DB + upload dir, test admin credentials).
 
 ## Conventions
 
@@ -123,6 +125,25 @@ venv\Scripts\waitress-serve --host=127.0.0.1 --port=5000 wsgi:application
 off regardless of `FLASK_DEBUG`. Choose the bind address and port appropriate
 for the host or reverse proxy. See `SUMMARY.md` for the complete deployment
 instructions, route table, and schema.
+
+## Running the test suite
+
+A pytest-based test suite lives in `tests/` (fixtures in the root
+`conftest.py`). It never touches the real `backend/blog.db` or
+`static/images/portfolio/` -- `conftest.py` points `BLOG_DB_PATH` and
+`PORTFOLIO_IMAGE_DIR` at a temporary directory before the app is ever
+imported, and reseeds a fresh copy of the schema (via `init_db.py`'s
+`init_schema`/`seed_sample_data`, not a hand-copied schema) before every
+test.
+
+```
+venv\Scripts\python -m pip install -r requirements-dev.txt
+venv\Scripts\python -m pytest
+```
+
+`requirements-dev.txt` layers `pytest` on top of `requirements.txt` --
+`requirements.txt` itself stays production-only, per the convention
+explained in its own comment.
 
 ## Multi-agent branches (if in use)
 

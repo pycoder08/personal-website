@@ -30,7 +30,10 @@ personal-website-full/
 ├── static/
 │   ├── css/style.css             The full stylesheet (design system + all pages)
 │   └── images/portfolio/         Uploaded portfolio screenshots (git-tracked, real content)
+├── tests/                Pytest test suite (routes, auth, CRUD, uploads, validation)
+├── conftest.py           Shared pytest fixtures: isolated temp DB + upload dir
 ├── requirements.txt      Pinned direct runtime dependencies
+├── requirements-dev.txt  Adds pytest on top of requirements.txt, for running tests
 ├── wsgi.py               Production entry point (credentials required, debug off)
 └── venv/                 Local virtual environment
 ```
@@ -63,6 +66,24 @@ terminal to stop the server.
 If you ever want to wipe your changes and start over with the original
 sample data, just re-run `init_db.py` -- it drops and recreates both
 tables from scratch.
+
+## Running the test suite
+
+```
+venv\Scripts\python -m pip install -r requirements-dev.txt
+venv\Scripts\python -m pytest
+```
+
+The suite (`tests/`, fixtures in the root `conftest.py`) uses Flask's
+`test_client()` -- no server needs to be running. It's fully isolated from
+real data: `conftest.py` sets `BLOG_DB_PATH` and `PORTFOLIO_IMAGE_DIR`
+environment variables to a temporary directory before `backend/app.py` and
+`backend/db.py` are imported, so the real `backend/blog.db` and
+`static/images/portfolio/` are never opened or written to. Each test gets a
+freshly reseeded copy of the schema (reusing `init_db.py`'s
+`init_schema`/`seed_sample_data` functions, so there's one source of truth
+for the schema) and a cleared-out upload directory, and runs against fixed
+test admin credentials rather than the real environment's.
 
 ## Real deployment with Waitress
 

@@ -244,38 +244,44 @@ PORTFOLIO_ITEMS = [
 ]
 
 
-def main():
-    connection = get_db_connection()
-    cursor = connection.cursor()
+SCHEMA_SCRIPT = """
+    DROP TABLE IF EXISTS posts;
+    DROP TABLE IF EXISTS portfolio_items;
 
-    cursor.executescript(
-        """
-        DROP TABLE IF EXISTS posts;
-        DROP TABLE IF EXISTS portfolio_items;
+    CREATE TABLE posts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        date_iso TEXT NOT NULL,
+        date_display TEXT NOT NULL,
+        tag TEXT NOT NULL,
+        excerpt TEXT NOT NULL,
+        body TEXT NOT NULL
+    );
 
-        CREATE TABLE posts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            date_iso TEXT NOT NULL,
-            date_display TEXT NOT NULL,
-            tag TEXT NOT NULL,
-            excerpt TEXT NOT NULL,
-            body TEXT NOT NULL
-        );
+    CREATE TABLE portfolio_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        color_start TEXT NOT NULL,
+        color_end TEXT NOT NULL,
+        icon TEXT NOT NULL,
+        image_filename TEXT
+    );
+    """
 
-        CREATE TABLE portfolio_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            description TEXT NOT NULL,
-            color_start TEXT NOT NULL,
-            color_end TEXT NOT NULL,
-            icon TEXT NOT NULL,
-            image_filename TEXT
-        );
-        """
-    )
 
-    cursor.executemany(
+def init_schema(connection):
+    """(Re)create the posts and portfolio_items tables, dropping any existing
+    data. This is the single source of truth for the schema -- both the CLI
+    entry point below and the test suite's conftest.py call this instead of
+    each keeping their own copy of the CREATE TABLE statements."""
+    connection.executescript(SCHEMA_SCRIPT)
+
+
+def seed_sample_data(connection):
+    """Insert the sample posts and portfolio items used for local dev and
+    as the known, deterministic fixture data for the test suite."""
+    connection.executemany(
         """
         INSERT INTO posts (title, date_iso, date_display, tag, excerpt, body)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -283,7 +289,7 @@ def main():
         POSTS,
     )
 
-    cursor.executemany(
+    connection.executemany(
         """
         INSERT INTO portfolio_items
             (title, description, color_start, color_end, icon)
@@ -291,6 +297,13 @@ def main():
         """,
         PORTFOLIO_ITEMS,
     )
+
+
+def main():
+    connection = get_db_connection()
+
+    init_schema(connection)
+    seed_sample_data(connection)
 
     connection.commit()
     connection.close()

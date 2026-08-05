@@ -9,7 +9,13 @@ import os
 import sqlite3
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "blog.db")
+DEFAULT_DB_PATH = os.path.join(BASE_DIR, "blog.db")
+
+# Tests point this at a temporary, isolated database via the BLOG_DB_PATH
+# environment variable (see the project root conftest.py). Normal local dev
+# and production never set that variable, so DB_PATH resolves to the same
+# hardcoded blog.db path as before -- zero config changes for normal use.
+DB_PATH = os.environ.get("BLOG_DB_PATH", DEFAULT_DB_PATH)
 
 
 def get_db_connection():
