@@ -14,6 +14,19 @@
 
     <h1>{{ video['title'] }}</h1>
     <p class="video-description">{{ video['description'] }}</p>
+
+    {% if video['video_url'] %}
+    <p class="video-link">
+      <a class="btn btn-primary btn-sm" href="{{ video['video_url'] }}" target="_blank" rel="noopener noreferrer">Watch the full video &rarr;</a>
+    </p>
+    {% endif %}
+
+    <div class="card-actions">
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('video_edit', video_id=video['id']) }}">Edit</a>
+      <form class="inline-form" method="POST" action="{{ url_for('video_delete', video_id=video['id']) }}" onsubmit="return confirm('Delete this video? This cannot be undone.');">
+        <button class="btn btn-danger btn-sm" type="submit">Delete</button>
+      </form>
+    </div>
   </article>
 
 {% endblock %}

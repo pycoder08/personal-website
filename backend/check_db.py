@@ -12,4 +12,8 @@ print("\n== portfolio_items ==")
 for row in connection.execute("SELECT id, title FROM portfolio_items ORDER BY id"):
     print(dict(row))
 
+print("\n== videos ==")
+for row in connection.execute("SELECT id, title, duration, video_url FROM videos ORDER BY id"):
+    print(dict(row))
+
 connection.close()

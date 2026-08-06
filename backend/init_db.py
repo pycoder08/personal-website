@@ -244,9 +244,62 @@ PORTFOLIO_ITEMS = [
 ]
 
 
+VIDEOS = [
+    (
+        "Building a Nav Bar From Scratch",
+        "A walkthrough of turning a plain list of links into "
+        "a sticky, responsive nav bar with an active-page indicator.",
+        "8:14",
+        "#6366f1",
+        "#8b5cf6",
+    ),
+    (
+        "Flask Routes Explained",
+        "What actually happens between typing a URL and "
+        "Flask deciding which function should handle it.",
+        "12:02",
+        "#0ea5e9",
+        "#22d3ee",
+    ),
+    (
+        "SQLite in 10 Minutes",
+        "Tables, rows, and just enough SQL to store and "
+        "retrieve real data from a personal project.",
+        "10:47",
+        "#10b981",
+        "#34d399",
+    ),
+    (
+        "Designing a Card Grid",
+        "Spacing, shadows, and hover states -- the small "
+        "details that make a grid of boxes feel like a real product.",
+        "6:33",
+        "#f97316",
+        "#facc15",
+    ),
+    (
+        "Parameterized Queries, No Excuses",
+        "Why string-formatting SQL is dangerous and how "
+        "placeholder queries fix it without extra effort.",
+        "9:21",
+        "#e11d48",
+        "#fb7185",
+    ),
+    (
+        "From Static HTML to Jinja Templates",
+        "Turning four copy-pasted HTML files into one shared "
+        "layout with a handful of small, focused templates.",
+        "11:05",
+        "#7c3aed",
+        "#a855f7",
+    ),
+]
+
+
 SCHEMA_SCRIPT = """
     DROP TABLE IF EXISTS posts;
     DROP TABLE IF EXISTS portfolio_items;
+    DROP TABLE IF EXISTS videos;
 
     CREATE TABLE posts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -266,6 +319,16 @@ SCHEMA_SCRIPT = """
         color_end TEXT NOT NULL,
         icon TEXT NOT NULL,
         image_filename TEXT
+    );
+
+    CREATE TABLE videos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        duration TEXT NOT NULL,
+        color_start TEXT NOT NULL,
+        color_end TEXT NOT NULL,
+        video_url TEXT
     );
     """
 
@@ -298,6 +361,14 @@ def seed_sample_data(connection):
         PORTFOLIO_ITEMS,
     )
 
+    connection.executemany(
+        """
+        INSERT INTO videos (title, description, duration, color_start, color_end)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        VIDEOS,
+    )
+
 
 def main():
     connection = get_db_connection()
@@ -308,7 +379,10 @@ def main():
     connection.commit()
     connection.close()
 
-    print(f"Seeded {len(POSTS)} posts and {len(PORTFOLIO_ITEMS)} portfolio items.")
+    print(
+        f"Seeded {len(POSTS)} posts, {len(PORTFOLIO_ITEMS)} portfolio items, "
+        f"and {len(VIDEOS)} videos."
+    )
 
 
 if __name__ == "__main__":

@@ -35,7 +35,8 @@ and installed into a `venv/` at the project root.
   image uploads" below). Contains a `.gitkeep` so git tracks the folder even
   when no images have been uploaded yet.
 - `static/images/` — video "thumbnails" are still pure CSS gradients + emoji
-  icons, not real image files (no video hosting exists yet).
+  icons, not real image/video files -- there's no video file hosting, and
+  none is planned (see "Videos" below for what real video links look like).
 - `tests/` — pytest test suite; `conftest.py` at the project root holds the
   shared fixtures (isolated temp DB + upload dir, test admin credentials).
 
@@ -54,7 +55,8 @@ and installed into a `venv/` at the project root.
 
 All create/edit/delete routes (`/blog/new`, `/blog/<id>/edit`,
 `/blog/<id>/delete`, `/portfolio/new`, `/portfolio/<id>/edit`,
-`/portfolio/<id>/delete`) are protected by plain HTTP Basic Auth (see
+`/portfolio/<id>/delete`, `/videos/new`, `/videos/<id>/edit`,
+`/videos/<id>/delete`) are protected by plain HTTP Basic Auth (see
 `require_auth` in `backend/app.py`) -- no sessions, JWTs, or user table,
 since this is a single-owner personal site. All read-only routes stay
 public.
@@ -95,6 +97,26 @@ file field):
   it has one.
 - Uploaded images are real site content (not build artifacts), so
   `static/images/portfolio/` is intentionally **not** git-ignored.
+
+## Videos
+
+`videos` is a real table (`id, title, description, duration, color_start,
+color_end, video_url`), following the exact same CRUD shape as
+`portfolio_items` (`/videos/new`, `/videos/<id>/edit`, `/videos/<id>/delete`,
+all `require_auth`-gated). Unlike portfolio, there is **no file upload** --
+this is a personal site, not a video hosting platform, so no real video
+files are ever stored on disk.
+
+- `color_start`/`color_end` drive the same CSS-gradient placeholder
+  thumbnail used everywhere a real image/video file doesn't exist (shown on
+  both the `/videos` grid and the `/videos/<id>` detail page).
+- `video_url` is optional/nullable TEXT. When set, `/videos/<id>` renders a
+  plain `<a href="{{ video_url }}">Watch the full video</a>` link (opens in
+  a new tab) below the placeholder -- not a custom player, not an embed.
+  When it's null (the default, and true for all seed data), the detail page
+  just shows the placeholder with no watch link, same as before.
+- Leave the `video_url` field blank on the add/edit form to keep a video
+  placeholder-only.
 
 ## Running it
 
@@ -156,7 +178,9 @@ Don't merge a `*/<task-slug>` branch without running `/deliberate
 
 - `backend/blog.db` is git-ignored (generated data) — always regenerate
   it via `init_db.py` after a fresh clone or after a schema change.
-- The videos section is NOT in the database — it's a plain Python list in
-  `app.py`, since there's no real video hosting yet.
+- Videos are a real database table (`videos`), same CRUD pattern as
+  portfolio -- see "Videos" above. There's still no real video file
+  hosting; `video_url` only ever holds a link to somewhere else (e.g.
+  YouTube), never an uploaded file.
 - Windows paths: use `venv\Scripts\python` / `venv\Scripts\pip`, not the
   Unix `venv/bin/...` paths.

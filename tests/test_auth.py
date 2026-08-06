@@ -11,11 +11,14 @@ GET_FORM_ROUTES = [
     ("GET", "/blog/1/edit"),
     ("GET", "/portfolio/new"),
     ("GET", "/portfolio/1/edit"),
+    ("GET", "/videos/new"),
+    ("GET", "/videos/1/edit"),
 ]
 
 DELETE_ROUTES = [
     ("POST", "/blog/1/delete"),
     ("POST", "/portfolio/1/delete"),
+    ("POST", "/videos/1/delete"),
 ]
 
 ALL_GATED_ROUTES = GET_FORM_ROUTES + DELETE_ROUTES
@@ -53,3 +56,10 @@ def test_portfolio_delete_succeeds_with_correct_credentials(client, good_auth):
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/portfolio")
     assert client.get("/portfolio/1/edit", auth=good_auth).status_code == 404
+
+
+def test_video_delete_succeeds_with_correct_credentials(client, good_auth):
+    response = client.post("/videos/1/delete", auth=good_auth)
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/videos")
+    assert client.get("/videos/1").status_code == 404

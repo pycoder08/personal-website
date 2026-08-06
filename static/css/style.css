@@ -612,15 +612,22 @@ code {
   gap: 1.5rem;
 }
 
-.video-card {
-  text-decoration: none;
-  color: var(--text);
-  display: block;
-}
-
 .video-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-hover);
+}
+
+.video-thumb-link {
+  display: block;
+}
+
+.video-title-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.video-title-link:hover {
+  color: var(--primary);
 }
 
 .video-thumb {
@@ -673,6 +680,14 @@ code {
 .video-description {
   color: var(--muted);
   max-width: 60ch;
+}
+
+.video-link {
+  margin: 0.25rem 0 1.75rem;
+}
+
+.video-full .card-actions {
+  margin-top: 0;
 }
 
 /* =========================================================

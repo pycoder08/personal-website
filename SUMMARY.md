@@ -24,8 +24,9 @@ personal-website-full/
 │   ├── blog_list.html    Blog feed (from the database)
 │   ├── blog_post.html    Single post detail page
 │   ├── blog_new.html     "Add Post" form
-│   ├── videos.html       Video grid (placeholder thumbnails)
+│   ├── videos.html       Video grid (from the database)
 │   ├── video_detail.html Single video detail page
+│   ├── video_form.html   "Add/Edit Video" form
 │   └── 404.html          Not-found page
 ├── static/
 │   ├── css/style.css             The full stylesheet (design system + all pages)
@@ -129,8 +130,13 @@ effect on the Waitress production entry point.
 | `/blog/<id>/edit` | GET | Yes | The "edit post" form, pre-filled from the existing row (same template as "add post"); 404 if the id doesn't exist |
 | `/blog/<id>/edit` | POST | Yes | Validates the fields, updates the row (parameterized query), redirects to the post |
 | `/blog/<id>/delete` | POST | Yes | Deletes the row (parameterized query), redirects to `/blog` |
-| `/videos` | GET | No | Video grid (sample data defined directly in `app.py`, not a DB table) |
-| `/videos/<id>` | GET | No | Single video detail placeholder page |
+| `/videos` | GET | No | Full video grid, read from the `videos` table |
+| `/videos/new` | GET | Yes | The "add video" form |
+| `/videos/new` | POST | Yes | Validates the fields, inserts a new row (parameterized query), redirects to `/videos` |
+| `/videos/<id>` | GET | No | Single video detail page; 404 if the id doesn't exist |
+| `/videos/<id>/edit` | GET | Yes | The "edit video" form, pre-filled from the existing row; 404 if the id doesn't exist |
+| `/videos/<id>/edit` | POST | Yes | Validates the fields, updates the row (parameterized query), redirects to the video's detail page |
+| `/videos/<id>/delete` | POST | Yes | Deletes the row (parameterized query), redirects to `/videos` |
 
 ### Logging in
 
@@ -166,6 +172,18 @@ if it's `NULL` (the default for seed data, and for any row where the upload
 was skipped), the card falls back to a CSS gradient (`color_start` to
 `color_end`) with an emoji icon, exactly like before.
 
+**videos** -- `id, title, description, duration, color_start, color_end, video_url`
+Each video renders as a card with a CSS-gradient (`color_start` to
+`color_end`) placeholder thumbnail and a `duration` badge -- there's no
+uploaded thumbnail image or real video file behind it. `video_url` is
+optional/nullable: when set (via `/videos/new` or `/videos/<id>/edit`), the
+video's detail page (`/videos/<id>`) shows a plain link -- "Watch the full
+video" -- pointing at it, opened in a new tab; when it's `NULL` (the default
+for all seed data), the detail page shows only the placeholder, no link.
+This is intentionally not a real video player or embed -- linking out to
+wherever the video is actually hosted (e.g. YouTube) is the full extent of
+video "hosting" this app does.
+
 ### Portfolio image uploads
 
 `/portfolio/new` and `/portfolio/<id>/edit` accept an optional file upload
@@ -191,10 +209,11 @@ was skipped), the card falls back to a CSS gradient (`color_start` to
   folder exists even before any upload) -- unlike `blog.db`, uploaded
   images are real content, not generated data, so they aren't git-ignored.
 
-The videos section is *not* in the database -- it's a small Python list
-inside `app.py`, since there's no real video content or hosting behind it.
-If you ever add real project screenshots or video files, swapping the
-placeholders for `<img>`/`<video>` tags is a small, contained change.
+The videos section *is* in the database (see the `videos` schema above),
+with the same create/edit/delete flow as portfolio -- the difference is
+there's no file upload for videos, since this app deliberately doesn't do
+real video file hosting. Instead, an optional `video_url` column lets a
+video link out to wherever it's actually hosted (e.g. YouTube).
 
 ## Design notes
 
@@ -206,17 +225,25 @@ placeholders for `<img>`/`<video>` tags is a small, contained change.
 - Portfolio thumbnails now support real uploaded screenshots (see
   "Portfolio image uploads" above), falling back to a CSS gradient plus
   emoji/icon when no image has been uploaded. Video "thumbnails" are still
-  pure CSS gradients plus an icon -- no video hosting exists yet.
+  pure CSS gradients plus a play icon -- there's no uploaded thumbnail
+  image or video file, though a video can now optionally link out to a
+  real recording hosted elsewhere (see "Videos" schema section above).
 
 ## Verified before handoff
 
-- `init_db.py` runs cleanly and seeds 6 blog posts (with full body text)
-  and 9 portfolio items.
-- Started the Flask server and curl-tested every route above: all return
-  200 (or 404 for a nonexistent id, as expected).
-- Submitted the add-post form via curl -- confirmed the new row appeared
-  in `blog.db` and on `/blog`, then reset the database back to the clean
-  seed data with `init_db.py` afterward.
-- Loaded the home and videos pages in a browser to confirm templates
-  render correctly with no console errors.
-- Server was stopped after testing -- nothing is left running.
+- `init_db.py` runs cleanly and seeds 6 blog posts (with full body text),
+  9 portfolio items, and 6 videos.
+- The full pytest suite (58 tests, including `tests/test_videos.py`) passes.
+- Confirmed the real `backend/blog.db` is byte-for-byte unchanged (sha256
+  hash compared before/after) by a full pytest run -- the test suite never
+  touches it.
+- Started the Flask server and curl-tested every route above, including the
+  new `/videos/new`, `/videos/<id>/edit`, `/videos/<id>/delete` routes:
+  read routes return 200 (or 404 for a nonexistent id), write routes return
+  401 without/with-wrong credentials and succeed with the right ones.
+- Created a video with a `video_url` via curl, confirmed the "Watch the
+  full video" link appeared on its detail page and pointed at the right
+  URL, edited it to clear the URL and confirmed the link disappeared,
+  then deleted it and confirmed the row was gone -- then reset the
+  database back to the clean seed data with `init_db.py` afterward.
+- Server was stopped after testing -- nothing is left listening on port 5000.
