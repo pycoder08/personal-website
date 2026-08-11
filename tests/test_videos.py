@@ -8,6 +8,8 @@ hitting the real network, so the suite stays fast, isolated, and doesn't
 depend on YouTube being reachable (or a given video still existing) from
 CI."""
 
+import pytest
+
 import app as app_module
 import db as db_module
 
@@ -338,3 +340,86 @@ def test_editing_video_with_youtube_url_detects_duration(client, good_auth, monk
     row = connection.execute("SELECT duration FROM videos WHERE id = 1").fetchone()
     connection.close()
     assert row["duration"] == "7:07"
+
+
+# --- YouTube video id extraction and real thumbnail/embed rendering --------
+
+
+@pytest.mark.parametrize(
+    "url,expected",
+    [
+        ("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "dQw4w9WgXcQ"),
+        ("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=30s", "dQw4w9WgXcQ"),
+        ("https://youtu.be/dQw4w9WgXcQ", "dQw4w9WgXcQ"),
+        ("https://www.youtube.com/embed/dQw4w9WgXcQ", "dQw4w9WgXcQ"),
+        ("https://www.youtube.com/shorts/dQw4w9WgXcQ", "dQw4w9WgXcQ"),
+        ("https://example.com/my-video", None),
+        ("", None),
+        (None, None),
+    ],
+)
+def test_youtube_video_id_extraction(url, expected):
+    assert app_module.youtube_video_id(url) == expected
+
+
+def test_video_with_youtube_url_shows_real_thumbnail_in_grid(client, good_auth, monkeypatch):
+    monkeypatch.setattr(app_module, "extract_youtube_duration", lambda url: "3:33")
+    client.post(
+        "/videos/new",
+        data={
+            "title": "Real Thumbnail Video",
+            "description": "desc",
+            "duration": "",
+            "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        },
+        auth=good_auth,
+    )
+
+    listing = client.get("/videos")
+    assert (
+        b"https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg" in listing.data
+    )
+
+
+def test_video_without_youtube_url_shows_no_thumbnail_image(client):
+    # Seeded videos never have a video_url, so no video-thumb-img should
+    # render anywhere on the grid.
+    listing = client.get("/videos")
+    assert b"video-thumb-img" not in listing.data
+
+
+def test_video_detail_with_youtube_url_shows_embedded_player(client, good_auth, monkeypatch):
+    monkeypatch.setattr(app_module, "extract_youtube_duration", lambda url: "3:33")
+    client.post(
+        "/videos/new",
+        data={
+            "title": "Embedded Player Video",
+            "description": "desc",
+            "duration": "",
+            "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        },
+        auth=good_auth,
+    )
+
+    row = _get_video_by_title("Embedded Player Video")
+    detail = client.get(f"/videos/{row['id']}")
+    assert b"youtube-nocookie.com/embed/dQw4w9WgXcQ" in detail.data
+    assert b"video-embed" in detail.data
+    assert b"Watch on YouTube" in detail.data
+
+
+def test_video_detail_without_youtube_url_shows_gradient_placeholder_not_embed(
+    client, good_auth
+):
+    # example.com link: renders the old gradient .video-player, not an
+    # <iframe>, and says "Watch the full video" rather than "on YouTube".
+    form = dict(NEW_VIDEO_FORM)
+    form["video_url"] = "https://example.com/my-video"
+    client.post("/videos/new", data=form, auth=good_auth)
+
+    row = _get_video_by_title("A Brand New Test Video")
+    detail = client.get(f"/videos/{row['id']}")
+    assert b"video-player" in detail.data
+    assert b"video-embed" not in detail.data
+    assert b"Watch the full video" in detail.data
+    assert b"Watch on YouTube" not in detail.data

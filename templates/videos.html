@@ -7,9 +7,9 @@
   <section class="page-heading with-action">
     <div>
       <h1>Videos</h1>
-      <p>A YouTube-style shelf of sample videos. There's no real footage
-         behind most of these yet -- the thumbnails are drawn with plain CSS
-         -- but any video can link out to a real recording once one exists.</p>
+      <p>A YouTube-style shelf of videos. Ones with a real YouTube link show
+         that video's actual thumbnail and play right on its page; the rest
+         fall back to a plain CSS placeholder.</p>
     </div>
     {% if is_authenticated %}
     <a class="btn btn-primary" href="{{ url_for('video_new') }}">+ New Video</a>
@@ -19,9 +19,14 @@
   <section class="section">
     <div class="video-grid">
       {% for video in videos %}
+      {% set yt_id = video['video_url'] | youtube_id %}
       <article class="card video-card">
         <a class="video-thumb-link" href="{{ url_for('video_detail', video_id=video['id']) }}">
-          <div class="video-thumb" style="background: linear-gradient(135deg, {{ video['color_start'] }}, {{ video['color_end'] }});">
+          <div class="video-thumb" {% if not yt_id %}style="background: linear-gradient(135deg, {{ video['color_start'] }}, {{ video['color_end'] }});"{% endif %}>
+            {% if yt_id %}
+            <img class="video-thumb-img" src="https://img.youtube.com/vi/{{ yt_id }}/hqdefault.jpg" alt="{{ video['title'] }} thumbnail" loading="lazy">
+            <div class="video-thumb-overlay" aria-hidden="true"></div>
+            {% endif %}
             <span class="play-icon" aria-hidden="true">&#9658;</span>
             <span class="video-duration">{{ video['duration'] }}</span>
           </div>

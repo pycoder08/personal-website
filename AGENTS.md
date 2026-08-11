@@ -248,3 +248,9 @@ Don't merge a `*/<task-slug>` branch without running `/deliberate
   YouTube), never an uploaded file.
 - Windows paths: use `venv\Scripts\python` / `venv\Scripts\pip`, not the
   Unix `venv/bin/...` paths.
+- `static/css/style.css` is served at a fixed URL, so browsers can and do
+  cache it indefinitely. `base.html` appends `?v={{ asset_version }}`
+  (the file's mtime, injected via `inject_asset_version()` in
+  `backend/app.py`) so a CSS edit is always picked up on the next load --
+  don't remove that query param, and don't assume a CSS change is "not
+  working" without a hard refresh if this ever gets removed.

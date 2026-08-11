@@ -178,16 +178,26 @@ was skipped), the card falls back to a CSS gradient (`color_start` to
 `color_end`) with an emoji icon, exactly like before.
 
 **videos** -- `id, title, description, duration, color_start, color_end, video_url`
-Each video renders as a card with a CSS-gradient (`color_start` to
-`color_end`) placeholder thumbnail and a `duration` badge -- there's no
-uploaded thumbnail image or real video file behind it. `video_url` is
-optional/nullable: when set (via `/videos/new` or `/videos/<id>/edit`), the
-video's detail page (`/videos/<id>`) shows a plain link -- "Watch the full
-video" -- pointing at it, opened in a new tab; when it's `NULL` (the default
-for all seed data), the detail page shows only the placeholder, no link.
-This is intentionally not a real video player or embed -- linking out to
-wherever the video is actually hosted (e.g. YouTube) is the full extent of
-video "hosting" this app does.
+When `video_url` isn't a YouTube link (or is unset -- the default for all
+seed data), a video renders as a card with a CSS-gradient (`color_start`
+to `color_end`) placeholder thumbnail and a `duration` badge, and its
+detail page shows a plain "Watch the full video" link pointing at
+`video_url` (new tab) instead of a player. No file upload, no real video
+storage either way -- this app never hosts actual video files.
+
+**Real YouTube thumbnails and inline playback:** when `video_url` *is* a
+YouTube link, `youtube_video_id()` (a `youtube_id` Jinja filter, in
+`backend/app.py`) extracts the 11-character video id via regex (handles
+`watch?v=`, `youtu.be/`, `/embed/`, and `/shorts/` URL shapes) and:
+- `/videos` shows that video's real thumbnail
+  (`https://img.youtube.com/vi/<id>/hqdefault.jpg`) instead of the
+  gradient, with a semi-transparent `.video-thumb-overlay` behind the
+  play icon/duration badge so they stay legible over any thumbnail.
+- `/videos/<id>` embeds the actual video in a responsive 16:9
+  `<iframe>` (`youtube-nocookie.com/embed/<id>`) instead of the gradient
+  placeholder, so it plays right on the page. The external link below it
+  changes to "Watch on YouTube".
+No API key needed for either -- both are public YouTube URL patterns.
 
 **Standardized gradient colors:** the "add video" form no longer asks for
 `color_start`/`color_end` -- every new video gets the same fixed gradient

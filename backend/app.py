@@ -11,6 +11,7 @@ you launch it from.
 """
 
 import os
+import re
 import secrets
 import uuid
 from datetime import datetime
@@ -225,6 +226,43 @@ def format_display_date(date_iso):
     platform-specific strftime flags (Windows doesn't support %-d)."""
     dt = datetime.strptime(date_iso, "%Y-%m-%d")
     return f"{dt.strftime('%B')} {dt.day}, {dt.year}"
+
+
+# ---------------------------------------------------------------------------
+# Cache-busting for static/css/style.css: the stylesheet URL never changes,
+# so browsers can and do keep serving a stale cached copy indefinitely after
+# a CSS edit. Appending ?v=<file mtime> to the <link> URL (see base.html)
+# means the URL itself changes whenever the file's contents change, forcing
+# a fresh fetch without needing a manual cache-busting version bump.
+# ---------------------------------------------------------------------------
+@app.context_processor
+def inject_asset_version():
+    css_path = os.path.join(PROJECT_ROOT, "static", "css", "style.css")
+    try:
+        version = int(os.path.getmtime(css_path))
+    except OSError:
+        version = 0
+    return {"asset_version": version}
+
+
+_YOUTUBE_ID_RE = re.compile(
+    r"(?:youtube(?:-nocookie)?\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/)|youtu\.be/)"
+    r"([A-Za-z0-9_-]{11})"
+)
+
+
+def youtube_video_id(url):
+    """Pull the 11-character video id out of a YouTube URL (watch, youtu.be,
+    embed, or shorts links all work). Returns None for anything else, so
+    templates can branch on it to decide between a real thumbnail/embed and
+    the CSS-gradient placeholder."""
+    if not url:
+        return None
+    match = _YOUTUBE_ID_RE.search(url)
+    return match.group(1) if match else None
+
+
+app.jinja_env.filters["youtube_id"] = youtube_video_id
 
 
 @app.route("/")
