@@ -813,6 +813,15 @@ code {
   color: var(--primary);
 }
 
+.footer-admin-link {
+  opacity: 0.55;
+  font-size: 0.8rem;
+}
+
+.footer-admin-link:hover {
+  opacity: 1;
+}
+
 /* =========================================================
    Responsive
    ========================================================= */

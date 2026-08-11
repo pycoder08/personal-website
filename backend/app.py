@@ -691,6 +691,17 @@ def video_delete(video_id):
     return redirect(url_for("videos"))
 
 
+@app.route("/admin")
+@require_auth
+def admin():
+    """No dashboard of its own -- just a stable, always-linked URL that
+    exists purely to trigger the browser's login prompt. Once your browser
+    has valid credentials cached, every page's New/Edit/Delete controls
+    show up on their own (see is_authenticated()), so this just redirects
+    straight to the blog afterward."""
+    return redirect(url_for("blog_list"))
+
+
 @app.errorhandler(404)
 def not_found(_error):
     return render_template("404.html"), 404

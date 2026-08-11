@@ -106,3 +106,12 @@ def test_new_post_button_hidden_when_anonymous(client):
 def test_new_post_button_shown_when_authenticated(client, good_auth):
     response = client.get("/blog", auth=good_auth)
     assert b"+ New Post" in response.data
+
+
+def test_admin_link_requires_auth_and_redirects_to_blog(client, good_auth, bad_auth):
+    assert client.get("/admin").status_code == 401
+    assert client.get("/admin", auth=bad_auth).status_code == 401
+
+    response = client.get("/admin", auth=good_auth)
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/blog")
