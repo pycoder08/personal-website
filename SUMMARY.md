@@ -189,6 +189,23 @@ This is intentionally not a real video player or embed -- linking out to
 wherever the video is actually hosted (e.g. YouTube) is the full extent of
 video "hosting" this app does.
 
+**Standardized gradient colors:** the "add video" form no longer asks for
+`color_start`/`color_end` -- every new video gets the same fixed gradient
+(`DEFAULT_VIDEO_COLOR_START`/`DEFAULT_VIDEO_COLOR_END` in `backend/app.py`,
+matching the site's own `--primary`/`--accent` brand colors). Editing a
+video never touches its stored colors either way.
+
+**Automatic duration detection:** if `video_url` is a YouTube link
+(`youtube.com`/`youtu.be`), `extract_youtube_duration()` uses `yt-dlp` to
+look up the real duration and uses that, overriding whatever's typed in
+the `duration` field. If it's not a YouTube link, or extraction fails
+(private/deleted video, network issue), the manually-typed duration is
+used instead; if there's no manual duration either, the form shows a
+"couldn't detect it automatically" validation error rather than saving an
+empty duration. The pytest suite always monkeypatches
+`extract_youtube_duration` rather than calling the real network -- see
+`tests/test_videos.py`.
+
 ### Portfolio image uploads
 
 `/portfolio/new` and `/portfolio/<id>/edit` accept an optional file upload

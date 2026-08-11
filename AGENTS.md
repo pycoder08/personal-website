@@ -162,7 +162,11 @@ files are ever stored on disk.
 
 - `color_start`/`color_end` drive the same CSS-gradient placeholder
   thumbnail used everywhere a real image/video file doesn't exist (shown on
-  both the `/videos` grid and the `/videos/<id>` detail page).
+  both the `/videos` grid and the `/videos/<id>` detail page). The add-video
+  form doesn't ask for these anymore -- every new video gets the same fixed
+  gradient (`DEFAULT_VIDEO_COLOR_START`/`DEFAULT_VIDEO_COLOR_END` in
+  `backend/app.py`, matching the site's `--primary`/`--accent` brand
+  colors). Editing a video never changes its stored colors.
 - `video_url` is optional/nullable TEXT. When set, `/videos/<id>` renders a
   plain `<a href="{{ video_url }}">Watch the full video</a>` link (opens in
   a new tab) below the placeholder -- not a custom player, not an embed.
@@ -170,6 +174,13 @@ files are ever stored on disk.
   just shows the placeholder with no watch link, same as before.
 - Leave the `video_url` field blank on the add/edit form to keep a video
   placeholder-only.
+- If `video_url` looks like a YouTube link (`youtube.com`/`youtu.be`), the
+  `duration` field is auto-filled via `yt-dlp` (`extract_youtube_duration()`
+  in `backend/app.py`) and overrides whatever's typed manually. Non-YouTube
+  links, or a failed lookup, fall back to the manually-typed duration; if
+  there isn't one either, the form shows a validation error rather than
+  saving an empty duration. Tests must always monkeypatch
+  `extract_youtube_duration` -- never let the suite hit the real network.
 
 ## Running it
 

@@ -27,18 +27,13 @@
       <label for="description">Description</label>
       <textarea id="description" name="description" rows="3" placeholder="A short description of the video" required>{{ form.get('description', '') if form else '' }}</textarea>
 
-      <label for="duration">Duration</label>
-      <input type="text" id="duration" name="duration" placeholder="e.g. 8:14" value="{{ form.get('duration', '') if form else '' }}" required>
-
-      <label for="color_start">Gradient Start Color</label>
-      <input type="text" id="color_start" name="color_start" placeholder="#6366f1" value="{{ form.get('color_start', '') if form else '' }}" required>
-
-      <label for="color_end">Gradient End Color</label>
-      <input type="text" id="color_end" name="color_end" placeholder="#8b5cf6" value="{{ form.get('color_end', '') if form else '' }}" required>
-
       <label for="video_url">Video Link (optional)</label>
       <input type="url" id="video_url" name="video_url" placeholder="https://www.youtube.com/watch?v=..." value="{{ form.get('video_url', '') if form else '' }}">
-      <p class="form-hint">If a real video is hosted somewhere (e.g. YouTube), paste the link here -- it shows up as a "Watch" link on the video's detail page. Leave this blank to keep using just the placeholder thumbnail.</p>
+      <p class="form-hint">If a real video is hosted somewhere (e.g. YouTube), paste the link here -- it shows up as a "Watch" link on the video's detail page, and its duration is detected automatically below. Leave this blank to keep using just the placeholder thumbnail.</p>
+
+      <label for="duration">Duration</label>
+      <input type="text" id="duration" name="duration" placeholder="e.g. 8:14" value="{{ form.get('duration', '') if form else '' }}">
+      <p class="form-hint">Only needed if the link above isn't a YouTube link (or you left it blank) -- a YouTube duration overrides whatever's typed here.</p>
 
       <div class="form-actions">
         <a class="btn btn-ghost" href="{{ url_for('video_detail', video_id=video['id']) if video else url_for('videos') }}">Cancel</a>

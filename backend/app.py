@@ -16,6 +16,7 @@ import uuid
 from datetime import datetime
 from functools import wraps
 
+import yt_dlp
 from flask import Flask, Response, abort, flash, redirect, render_template, request, url_for
 from werkzeug.utils import secure_filename
 
@@ -91,6 +92,51 @@ def delete_portfolio_image(filename):
     path = os.path.join(PORTFOLIO_IMAGE_DIR, filename)
     if os.path.isfile(path):
         os.remove(path)
+
+
+# ---------------------------------------------------------------------------
+# Video placeholder thumbnails: rather than asking for a gradient every
+# time, every new video gets the same standardized gradient (matching the
+# site's own --primary/--accent brand colors). Editing a video never
+# touches its stored colors, so this only affects newly-created videos.
+# ---------------------------------------------------------------------------
+DEFAULT_VIDEO_COLOR_START = "#0d9488"
+DEFAULT_VIDEO_COLOR_END = "#ffbb54"
+
+
+def _looks_like_youtube_url(url):
+    lowered = url.lower()
+    return "youtube.com" in lowered or "youtu.be" in lowered
+
+
+def _format_duration(total_seconds):
+    total_seconds = int(total_seconds)
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours:
+        return f"{hours}:{minutes:02d}:{seconds:02d}"
+    return f"{minutes}:{seconds:02d}"
+
+
+def extract_youtube_duration(url):
+    """Best-effort: ask yt-dlp for a YouTube video's length and format it
+    as M:SS (or H:MM:SS for longer videos). Returns None on any failure
+    (private/deleted video, network hiccup, not actually a YouTube link,
+    etc.) so callers fall back to asking for it manually rather than
+    blowing up the whole request."""
+    try:
+        with yt_dlp.YoutubeDL(
+            {"quiet": True, "no_warnings": True, "skip_download": True, "socket_timeout": 8}
+        ) as ydl:
+            info = ydl.extract_info(url, download=False)
+    except Exception:
+        return None
+
+    seconds = info.get("duration") if info else None
+    if not seconds:
+        return None
+    return _format_duration(seconds)
+
 
 # ---------------------------------------------------------------------------
 # Auth: this is a single-owner personal site, so a full user/session system
@@ -576,14 +622,25 @@ def video_new():
     if request.method == "POST":
         title = request.form.get("title", "").strip()
         description = request.form.get("description", "").strip()
-        duration = request.form.get("duration", "").strip()
-        color_start = request.form.get("color_start", "").strip()
-        color_end = request.form.get("color_end", "").strip()
+        manual_duration = request.form.get("duration", "").strip()
         video_url = request.form.get("video_url", "").strip() or None
 
+        duration = manual_duration
+        detected = False
+        if video_url and _looks_like_youtube_url(video_url):
+            extracted = extract_youtube_duration(video_url)
+            if extracted:
+                duration = extracted
+                detected = True
+
         error = None
-        if not title or not description or not duration or not color_start or not color_end:
+        if not title or not description:
             error = "Please fill out every field before saving."
+        elif not duration:
+            error = (
+                "Couldn't detect the duration automatically from that link -- "
+                "please enter it manually (e.g. 8:14)."
+            )
 
         if error:
             return render_template(
@@ -596,11 +653,11 @@ def video_new():
             INSERT INTO videos (title, description, duration, color_start, color_end, video_url)
             VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (title, description, duration, color_start, color_end, video_url),
+            (title, description, duration, DEFAULT_VIDEO_COLOR_START, DEFAULT_VIDEO_COLOR_END, video_url),
         )
         connection.commit()
         connection.close()
-        flash("Video added.")
+        flash(f"Video added -- duration detected automatically ({duration})." if detected else "Video added.")
         return redirect(url_for("videos"))
 
     return render_template("video_form.html", error=None, form={}, video=None)
@@ -634,14 +691,25 @@ def video_edit(video_id):
     if request.method == "POST":
         title = request.form.get("title", "").strip()
         description = request.form.get("description", "").strip()
-        duration = request.form.get("duration", "").strip()
-        color_start = request.form.get("color_start", "").strip()
-        color_end = request.form.get("color_end", "").strip()
+        manual_duration = request.form.get("duration", "").strip()
         video_url = request.form.get("video_url", "").strip() or None
 
+        duration = manual_duration
+        detected = False
+        if video_url and _looks_like_youtube_url(video_url):
+            extracted = extract_youtube_duration(video_url)
+            if extracted:
+                duration = extracted
+                detected = True
+
         error = None
-        if not title or not description or not duration or not color_start or not color_end:
+        if not title or not description:
             error = "Please fill out every field before saving."
+        elif not duration:
+            error = (
+                "Couldn't detect the duration automatically from that link -- "
+                "please enter it manually (e.g. 8:14)."
+            )
 
         if error:
             connection.close()
@@ -649,17 +717,20 @@ def video_edit(video_id):
                 "video_form.html", error=error, form=request.form, video=video
             )
 
+        # Colors are intentionally left untouched here -- new videos get a
+        # standardized gradient (see video_new), but editing never changes
+        # a video's existing colors.
         connection.execute(
             """
             UPDATE videos
-            SET title = ?, description = ?, duration = ?, color_start = ?, color_end = ?, video_url = ?
+            SET title = ?, description = ?, duration = ?, video_url = ?
             WHERE id = ?
             """,
-            (title, description, duration, color_start, color_end, video_url, video_id),
+            (title, description, duration, video_url, video_id),
         )
         connection.commit()
         connection.close()
-        flash("Video updated.")
+        flash(f"Video updated -- duration detected automatically ({duration})." if detected else "Video updated.")
         return redirect(url_for("video_detail", video_id=video_id))
 
     connection.close()
@@ -667,8 +738,6 @@ def video_edit(video_id):
         "title": video["title"],
         "description": video["description"],
         "duration": video["duration"],
-        "color_start": video["color_start"],
-        "color_end": video["color_end"],
         "video_url": video["video_url"] or "",
     }
     return render_template("video_form.html", error=None, form=form, video=video)

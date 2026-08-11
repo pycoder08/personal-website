@@ -3,3 +3,4 @@
 # requirements, so they don't need to be listed separately.
 Flask==3.1.3
 waitress==3.0.2
+yt-dlp==2026.7.4
