@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Muhammad Conn{% endblock %}</title>
   <meta name="description" content="Muhammad Conn's personal site -- portfolio, blog, and videos.">
+
+  <!-- Inline SVG favicon (rounded square + "MC" initials, matching the
+       .logo-mark badge in the header) -- no external image file needed. -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%235b5fef'/%3E%3Ctext x='32' y='43' font-family='Arial, sans-serif' font-size='26' font-weight='700' fill='white' text-anchor='middle'%3EMC%3C/text%3E%3C/svg%3E">
+
+  <!-- Open Graph tags: block-overridable per page (e.g. a blog post or
+       video sets og_title/og_description to its own title/excerpt). -->
+  <meta property="og:title" content="{% block og_title %}Muhammad Conn{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}Muhammad Conn's personal site -- portfolio, blog, and videos.{% endblock %}">
+  <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+  <meta property="og:site_name" content="Muhammad Conn">
+
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -25,6 +37,15 @@
   </header>
 
   <main>
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="flash-messages">
+      {% for message in messages %}
+      <div class="flash-message">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
     {% block content %}{% endblock %}
   </main>
 

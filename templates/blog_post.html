@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 
 {% block title %}{{ post['title'] }} -- Muhammad Conn{% endblock %}
+{% block og_title %}{{ post['title'] }}{% endblock %}
+{% block og_description %}{{ post['excerpt'] }}{% endblock %}
+{% block og_type %}article{% endblock %}
 
 {% block content %}
 

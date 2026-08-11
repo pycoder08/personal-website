@@ -11,6 +11,9 @@ learning from.
 
 ```
 personal-website-full/
+├── .github/
+│   └── workflows/
+│       └── tests.yml    GitHub Actions: runs pytest on every push/PR to master
 ├── backend/
 │   ├── app.py          Flask app: every route lives here
 │   ├── db.py           Opens a SQLite connection (shared by all scripts)
@@ -119,24 +122,24 @@ effect on the Waitress production entry point.
 | `/` | GET | No | Home page: hero, about blurb, 3 featured projects, 3 recent posts |
 | `/portfolio` | GET | No | Full portfolio grid, read from the `portfolio_items` table |
 | `/portfolio/new` | GET | Yes | The "add project" form |
-| `/portfolio/new` | POST | Yes | Validates the fields, inserts a new row (parameterized query), redirects to `/portfolio` |
+| `/portfolio/new` | POST | Yes | Validates the fields, inserts a new row (parameterized query), flashes "Project added.", redirects to `/portfolio` |
 | `/portfolio/<id>/edit` | GET | Yes | The "edit project" form, pre-filled from the existing row; 404 if the id doesn't exist |
-| `/portfolio/<id>/edit` | POST | Yes | Validates the fields, updates the row (parameterized query), redirects to `/portfolio` |
-| `/portfolio/<id>/delete` | POST | Yes | Deletes the row (parameterized query), redirects to `/portfolio` |
-| `/blog` | GET | No | Full blog feed, read from the `posts` table, newest first; supports `?tag=X` filtering and shows the tag pill bar |
+| `/portfolio/<id>/edit` | POST | Yes | Validates the fields, updates the row (parameterized query), flashes "Project updated.", redirects to `/portfolio` |
+| `/portfolio/<id>/delete` | POST | Yes | Deletes the row (parameterized query), flashes "Project deleted.", redirects to `/portfolio` |
+| `/blog` | GET | No | Full blog feed, read from the `posts` table, newest first; supports `?tag=X` filtering, `?q=X` search, `?page=N` pagination (5 posts/page), all combinable |
 | `/blog/<id>` | GET | No | Full text of one post; 404 if the id doesn't exist |
 | `/blog/new` | GET | Yes | The "add post" form (includes the tag field + datalist of existing tags) |
-| `/blog/new` | POST | Yes | Validates the fields, inserts a new row (parameterized query), redirects to `/blog` |
+| `/blog/new` | POST | Yes | Validates the fields, normalizes the tag's casing against existing tags, inserts a new row (parameterized query), flashes "Post published.", redirects to `/blog` |
 | `/blog/<id>/edit` | GET | Yes | The "edit post" form, pre-filled from the existing row (same template as "add post"); 404 if the id doesn't exist |
-| `/blog/<id>/edit` | POST | Yes | Validates the fields, updates the row (parameterized query), redirects to the post |
-| `/blog/<id>/delete` | POST | Yes | Deletes the row (parameterized query), redirects to `/blog` |
+| `/blog/<id>/edit` | POST | Yes | Validates the fields, normalizes the tag's casing, updates the row (parameterized query), flashes "Post updated.", redirects to the post |
+| `/blog/<id>/delete` | POST | Yes | Deletes the row (parameterized query), flashes "Post deleted.", redirects to `/blog` |
 | `/videos` | GET | No | Full video grid, read from the `videos` table |
 | `/videos/new` | GET | Yes | The "add video" form |
-| `/videos/new` | POST | Yes | Validates the fields, inserts a new row (parameterized query), redirects to `/videos` |
+| `/videos/new` | POST | Yes | Validates the fields, inserts a new row (parameterized query), flashes "Video added.", redirects to `/videos` |
 | `/videos/<id>` | GET | No | Single video detail page; 404 if the id doesn't exist |
 | `/videos/<id>/edit` | GET | Yes | The "edit video" form, pre-filled from the existing row; 404 if the id doesn't exist |
-| `/videos/<id>/edit` | POST | Yes | Validates the fields, updates the row (parameterized query), redirects to the video's detail page |
-| `/videos/<id>/delete` | POST | Yes | Deletes the row (parameterized query), redirects to `/videos` |
+| `/videos/<id>/edit` | POST | Yes | Validates the fields, updates the row (parameterized query), flashes "Video updated.", redirects to the video's detail page |
+| `/videos/<id>/delete` | POST | Yes | Deletes the row (parameterized query), flashes "Video deleted.", redirects to `/videos` |
 
 ### Logging in
 
@@ -163,7 +166,9 @@ values and will not use these defaults.
 (e.g. `July 18, 2026`) is what's shown on the page. The add-post form
 only asks for one date field (a date picker) -- the app converts it to
 both formats for you. `tag` (e.g. `SQL`, `Design`) powers the pill-style
-filter bar on `/blog` and `/blog?tag=X`.
+filter bar on `/blog` and `/blog?tag=X`; it's still a plain TEXT column
+(see "Tag normalization" below for how near-duplicate tags are avoided
+without a separate tags table).
 
 **portfolio_items** -- `id, title, description, color_start, color_end, icon, image_filename`
 Each project renders as a card. If `image_filename` is set, the card shows
@@ -215,6 +220,63 @@ there's no file upload for videos, since this app deliberately doesn't do
 real video file hosting. Instead, an optional `video_url` column lets a
 video link out to wherever it's actually hosted (e.g. YouTube).
 
+## Flash messages
+
+Every create/edit/delete route flashes a short confirmation ("Post
+published.", "Project updated.", "Video deleted.", etc.) via Flask's
+`flash()` right before its redirect, rendered just inside `<main>` in
+`templates/base.html` and styled as `.flash-message` in
+`static/css/style.css` (same visual language as the existing `.form-error`
+banner, but in a distinct success color). This depends on `app.secret_key`
+to sign the session cookie the flashed message rides in, read from a
+`SECRET_KEY` environment variable with a fixed local-dev-only fallback --
+the same pattern as `ADMIN_USERNAME`/`ADMIN_PASSWORD`. `wsgi.py` now
+requires `SECRET_KEY` in production too, alongside the two admin
+variables.
+
+## Tag normalization
+
+Typing a tag that only differs from an existing one by case or stray
+whitespace ("sql" vs. "SQL") no longer creates a near-duplicate pill in the
+filter bar. `normalize_tag()` in `backend/app.py` runs on every
+`/blog/new` and `/blog/<id>/edit` POST and rewrites the submitted tag to
+match an existing tag's exact stored casing, if one matches
+case-insensitively. When editing a post, that post's own current row is
+excluded from the comparison, so a tag only that post uses can still have
+its casing corrected on purpose.
+
+## Blog search and pagination
+
+`/blog` supports `?q=X` (case-insensitive substring search across title,
+excerpt, and body, via parameterized `LIKE` queries -- never raw string
+formatting) and `?page=N` (5 posts per page), and both combine with the
+existing `?tag=X` filter. The search box sits above the tag pills in
+`templates/blog_list.html`; Previous/Next links appear only when there's a
+previous/next page and carry over whichever of `tag`/`q` are active. A
+search that matches nothing shows a "No posts match ..." message, distinct
+from the existing "No posts tagged ..." empty state. Portfolio and videos
+aren't paginated -- their seed counts are small enough not to need it.
+
+## Favicon and social preview tags
+
+`templates/base.html`'s `<head>` has an inline SVG data-URI favicon (a
+rounded square with "MC" initials, matching the header logo badge -- no
+image file to generate or source) plus Open Graph tags (`og:title`,
+`og:description`, `og:type`, `og:site_name`). `og:title`/`og:description`
+are Jinja blocks, same pattern as the existing `{% block title %}`, and
+default to the site's generic name/description; `templates/blog_post.html`
+and `templates/video_detail.html` override them with that post's/video's
+own title and excerpt/description (and set `og:type` to `article` /
+`video.other`).
+
+## Continuous integration
+
+`.github/workflows/tests.yml` runs the pytest suite on every push and pull
+request targeting `master`: checkout, set up Python 3.12, install
+`requirements.txt` + `requirements-dev.txt`, run `pytest`. Single job, no
+OS/Python version matrix -- this is a personal site, not a library that
+needs broad compatibility coverage.
+
 ## Design notes
 
 - Design system lives entirely in `static/css/style.css`, driven by CSS
@@ -233,17 +295,32 @@ video link out to wherever it's actually hosted (e.g. YouTube).
 
 - `init_db.py` runs cleanly and seeds 6 blog posts (with full body text),
   9 portfolio items, and 6 videos.
-- The full pytest suite (58 tests, including `tests/test_videos.py`) passes.
+- The full pytest suite (87 tests, including `tests/test_meta.py` for the
+  favicon/Open Graph tags) passes.
 - Confirmed the real `backend/blog.db` is byte-for-byte unchanged (sha256
   hash compared before/after) by a full pytest run -- the test suite never
   touches it.
-- Started the Flask server and curl-tested every route above, including the
-  new `/videos/new`, `/videos/<id>/edit`, `/videos/<id>/delete` routes:
-  read routes return 200 (or 404 for a nonexistent id), write routes return
-  401 without/with-wrong credentials and succeed with the right ones.
+- Started the Flask server and curl/browser-tested every route above,
+  including the new `?q=`/`?page=` behavior on `/blog`: read routes return
+  200 (or 404 for a nonexistent id), write routes return 401
+  without/with-wrong credentials and succeed with the right ones and show
+  a flash message on redirect.
 - Created a video with a `video_url` via curl, confirmed the "Watch the
   full video" link appeared on its detail page and pointed at the right
   URL, edited it to clear the URL and confirmed the link disappeared,
   then deleted it and confirmed the row was gone -- then reset the
   database back to the clean seed data with `init_db.py` afterward.
+- Created a post with a case-variant of an existing tag ("sql" with "SQL"
+  already present) and confirmed only "SQL" appears in the filter pills --
+  no duplicate "sql" pill.
+- Searched `/blog?q=...` for a term with matches and one with none,
+  confirming the distinct "No posts match ..." empty state; paginated to
+  page 2 of `/blog` and confirmed Previous/Next appear only where valid.
+- Viewed page source on the home page, a blog post, and a video detail
+  page and confirmed the favicon `<link>` renders with no console errors
+  and `og:title`/`og:description` reflect the specific post/video on their
+  detail pages while other pages fall back to the site defaults.
 - Server was stopped after testing -- nothing is left listening on port 5000.
+- `.github/workflows/tests.yml` was validated by parsing it with PyYAML
+  (structurally valid) and by eye against GitHub's documented workflow
+  schema; it mirrors the same install/test commands verified locally.

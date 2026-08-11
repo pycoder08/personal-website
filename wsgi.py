@@ -9,7 +9,9 @@ BACKEND_DIR = PROJECT_ROOT / "backend"
 sys.path.insert(0, str(BACKEND_DIR))
 
 missing_credentials = [
-    name for name in ("ADMIN_USERNAME", "ADMIN_PASSWORD") if not os.environ.get(name)
+    name
+    for name in ("ADMIN_USERNAME", "ADMIN_PASSWORD", "SECRET_KEY")
+    if not os.environ.get(name)
 ]
 if missing_credentials:
     raise RuntimeError(

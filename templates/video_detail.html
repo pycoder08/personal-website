@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 
 {% block title %}{{ video['title'] }} -- Muhammad Conn{% endblock %}
+{% block og_title %}{{ video['title'] }}{% endblock %}
+{% block og_description %}{{ video['description'] }}{% endblock %}
+{% block og_type %}video.other{% endblock %}
 
 {% block content %}
 

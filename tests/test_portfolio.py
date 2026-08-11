@@ -38,6 +38,14 @@ def test_create_item_inserts_row_and_shows_in_grid(client, good_auth):
     assert b"A Brand New Test Project" in listing.data
 
 
+def test_create_item_flashes_success_message(client, good_auth):
+    response = client.post(
+        "/portfolio/new", data=NEW_ITEM_FORM, auth=good_auth, follow_redirects=True
+    )
+    assert response.status_code == 200
+    assert b"Project added." in response.data
+
+
 def test_edit_item_updates_row(client, good_auth):
     response = client.post(
         "/portfolio/1/edit",
@@ -56,6 +64,23 @@ def test_edit_item_updates_row(client, good_auth):
     assert b"An Edited Project Title" in listing.data
 
 
+def test_edit_item_flashes_success_message(client, good_auth):
+    response = client.post(
+        "/portfolio/1/edit",
+        data={
+            "title": "An Edited Project Title",
+            "description": "Edited description.",
+            "color_start": "#333333",
+            "color_end": "#444444",
+            "icon": "\U0001F680",
+        },
+        auth=good_auth,
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert b"Project updated." in response.data
+
+
 def test_delete_item_removes_row(client, good_auth):
     before = _count_items()
 
@@ -63,6 +88,12 @@ def test_delete_item_removes_row(client, good_auth):
     assert response.status_code == 302
     assert _count_items() == before - 1
     assert client.get("/portfolio/1/edit", auth=good_auth).status_code == 404
+
+
+def test_delete_item_flashes_success_message(client, good_auth):
+    response = client.post("/portfolio/1/delete", auth=good_auth, follow_redirects=True)
+    assert response.status_code == 200
+    assert b"Project deleted." in response.data
 
 
 def test_new_item_missing_fields_shows_validation_error(client, good_auth):

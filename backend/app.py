@@ -16,7 +16,7 @@ import uuid
 from datetime import datetime
 from functools import wraps
 
-from flask import Flask, Response, abort, redirect, render_template, request, url_for
+from flask import Flask, Response, abort, flash, redirect, render_template, request, url_for
 from werkzeug.utils import secure_filename
 
 from db import get_db_connection
@@ -50,6 +50,20 @@ MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 # Flask/Werkzeug reject any request whose body exceeds this before the view
 # function even runs, raising a 413 that's handled by the errorhandler below.
 app.config["MAX_CONTENT_LENGTH"] = MAX_IMAGE_SIZE_BYTES
+
+# ---------------------------------------------------------------------------
+# SECRET_KEY signs Flask's session cookie. The only thing this app keeps in
+# the session is one-time flash messages ("Post published.", "Project
+# deleted.", etc. -- see flash() calls below), but Flask requires a secret
+# key to sign that cookie at all. Set a real SECRET_KEY environment variable
+# before deploying anywhere public -- the fallback below is fixed (so it
+# survives app restarts during local dev) and must NOT be relied on outside
+# your own machine, exactly like the ADMIN_USERNAME/ADMIN_PASSWORD fallback
+# just below.
+# ---------------------------------------------------------------------------
+app.secret_key = os.environ.get(
+    "SECRET_KEY", "local-dev-only-secret-key-9f2b6e4a1d7c8035-do-not-use-in-production"
+)
 
 
 def _has_allowed_image_extension(filename):
@@ -124,6 +138,28 @@ def get_all_tags():
     ]
     connection.close()
     return tags
+
+
+def normalize_tag(connection, tag, exclude_post_id=None):
+    """Reduce accidental duplicate tags caused by typos in case or spacing.
+
+    If an existing tag in `posts` matches `tag` case-insensitively (after
+    stripping whitespace on both sides), return that existing tag's exact
+    stored casing instead -- so typing "sql" when "SQL" already exists
+    reuses "SQL" rather than creating a near-duplicate "sql" tag. A
+    genuinely new tag is returned unchanged (already stripped by the
+    caller). `exclude_post_id` leaves the post currently being edited out
+    of the comparison, so a post that's the *only* one using a given tag
+    can still have that tag's own casing corrected.
+    """
+    query = "SELECT tag FROM posts WHERE LOWER(TRIM(tag)) = LOWER(?)"
+    params = [tag]
+    if exclude_post_id is not None:
+        query += " AND id != ?"
+        params.append(exclude_post_id)
+    query += " LIMIT 1"
+    existing = connection.execute(query, params).fetchone()
+    return existing["tag"] if existing else tag
 
 
 def format_display_date(date_iso):
@@ -202,6 +238,7 @@ def portfolio_new():
             # Don't leave an orphaned file on disk if the database write failed.
             delete_portfolio_image(image_filename)
             raise
+        flash("Project added.")
         return redirect(url_for("portfolio"))
 
     return render_template("portfolio_form.html", error=None, form={}, item=None)
@@ -267,6 +304,7 @@ def portfolio_edit(item_id):
         # Only remove the old file once the new row has actually been saved.
         if has_upload:
             delete_portfolio_image(old_image_filename)
+        flash("Project updated.")
         return redirect(url_for("portfolio"))
 
     connection.close()
@@ -294,26 +332,74 @@ def portfolio_delete(item_id):
     connection.commit()
     connection.close()
     delete_portfolio_image(item["image_filename"])
+    flash("Project deleted.")
     return redirect(url_for("portfolio"))
+
+
+POSTS_PER_PAGE = 5
 
 
 @app.route("/blog")
 def blog_list():
     selected_tag = request.args.get("tag", "").strip()
+    search_query = request.args.get("q", "").strip()
+
+    try:
+        page = int(request.args.get("page", "1"))
+    except ValueError:
+        page = 1
+    page = max(page, 1)
+
+    # Build the WHERE clause piece by piece -- every value that comes from
+    # the querystring is still passed through as a parameterized `?`
+    # placeholder, never string-formatted into the SQL itself.
+    conditions = []
+    params = []
+    if selected_tag:
+        conditions.append("tag = ?")
+        params.append(selected_tag)
+    if search_query:
+        like_pattern = f"%{search_query}%"
+        # SQLite's LIKE is case-insensitive for ASCII by default, so this
+        # covers "case-insensitive substring match" without extra LOWER()
+        # calls on every row.
+        conditions.append("(title LIKE ? OR excerpt LIKE ? OR body LIKE ?)")
+        params.extend([like_pattern, like_pattern, like_pattern])
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
     connection = get_db_connection()
-    if selected_tag:
-        posts = connection.execute(
-            "SELECT * FROM posts WHERE tag = ? ORDER BY date_iso DESC",
-            (selected_tag,),
-        ).fetchall()
-    else:
-        posts = connection.execute(
-            "SELECT * FROM posts ORDER BY date_iso DESC"
-        ).fetchall()
+    total_posts = connection.execute(
+        f"SELECT COUNT(*) AS n FROM posts {where_clause}", params
+    ).fetchone()["n"]
+    total_pages = max(1, -(-total_posts // POSTS_PER_PAGE))  # ceiling division
+    page = min(page, total_pages)
+    offset = (page - 1) * POSTS_PER_PAGE
+
+    posts = connection.execute(
+        f"SELECT * FROM posts {where_clause} ORDER BY date_iso DESC LIMIT ? OFFSET ?",
+        params + [POSTS_PER_PAGE, offset],
+    ).fetchall()
     connection.close()
+
+    # Only the filters that are actually active get carried over into the
+    # Previous/Next/tag-pill links -- keeps URLs clean when no filter is set.
+    filter_args = {}
+    if selected_tag:
+        filter_args["tag"] = selected_tag
+    if search_query:
+        filter_args["q"] = search_query
+
     return render_template(
-        "blog_list.html", posts=posts, tags=get_all_tags(), selected_tag=selected_tag
+        "blog_list.html",
+        posts=posts,
+        tags=get_all_tags(),
+        selected_tag=selected_tag,
+        search_query=search_query,
+        page=page,
+        total_pages=total_pages,
+        has_prev=page > 1,
+        has_next=page < total_pages,
+        filter_args=filter_args,
     )
 
 
@@ -346,6 +432,7 @@ def blog_new():
             )
 
         connection = get_db_connection()
+        tag = normalize_tag(connection, tag)
         connection.execute(
             """
             INSERT INTO posts (title, date_iso, date_display, tag, excerpt, body)
@@ -355,6 +442,7 @@ def blog_new():
         )
         connection.commit()
         connection.close()
+        flash("Post published.")
         return redirect(url_for("blog_list"))
 
     return render_template(
@@ -411,6 +499,7 @@ def blog_edit(post_id):
                 post=post,
             )
 
+        tag = normalize_tag(connection, tag, exclude_post_id=post_id)
         connection.execute(
             """
             UPDATE posts
@@ -421,6 +510,7 @@ def blog_edit(post_id):
         )
         connection.commit()
         connection.close()
+        flash("Post updated.")
         return redirect(url_for("blog_post", post_id=post_id))
 
     connection.close()
@@ -449,6 +539,7 @@ def blog_delete(post_id):
     connection.execute("DELETE FROM posts WHERE id = ?", (post_id,))
     connection.commit()
     connection.close()
+    flash("Post deleted.")
     return redirect(url_for("blog_list"))
 
 
@@ -490,6 +581,7 @@ def video_new():
         )
         connection.commit()
         connection.close()
+        flash("Video added.")
         return redirect(url_for("videos"))
 
     return render_template("video_form.html", error=None, form={}, video=None)
@@ -546,6 +638,7 @@ def video_edit(video_id):
         )
         connection.commit()
         connection.close()
+        flash("Video updated.")
         return redirect(url_for("video_detail", video_id=video_id))
 
     connection.close()
@@ -573,6 +666,7 @@ def video_delete(video_id):
     connection.execute("DELETE FROM videos WHERE id = ?", (video_id,))
     connection.commit()
     connection.close()
+    flash("Video deleted.")
     return redirect(url_for("videos"))
 
 

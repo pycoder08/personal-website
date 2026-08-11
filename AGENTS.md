@@ -66,6 +66,59 @@ variables. `app.py` retains an `admin` / `changeme` fallback only for local
 development; `wsgi.py` requires both variables and will not start a real
 server with the fallback.
 
+## Flash messages
+
+Every create/edit/delete route calls Flask's `flash()` right before its
+`redirect(...)` (e.g. "Post published.", "Project updated.", "Video
+deleted."), rendered by markup in `templates/base.html` (`.flash-message` /
+`.flash-messages` in `static/css/style.css`, styled with a distinct success
+color from `.form-error`'s). This requires `app.secret_key` to sign the
+session cookie, read from the `SECRET_KEY` environment variable with a
+fixed local-dev-only fallback -- same pattern as `ADMIN_USERNAME` /
+`ADMIN_PASSWORD` above. `wsgi.py` requires `SECRET_KEY` in production
+alongside the two admin variables.
+
+## Blog tag normalization
+
+`normalize_tag()` in `backend/app.py` runs on every `/blog/new` and
+`/blog/<id>/edit` POST: if the submitted tag matches an existing tag
+case-insensitively (whitespace-trimmed), it's rewritten to that existing
+tag's exact stored casing before the INSERT/UPDATE, so typing "sql" when
+"SQL" already exists reuses "SQL" instead of creating a near-duplicate.
+Editing excludes the post's own current row from the comparison, so a post
+that's the only one using a given tag can still have that tag's casing
+corrected. This is route-level logic only -- the `tag` column is still a
+plain TEXT column, no separate tags table.
+
+## Blog search and pagination
+
+`/blog` accepts `?q=` (case-insensitive substring match against title,
+excerpt, and body via parameterized `LIKE` queries) and `?page=` (5 posts
+per page), both combinable with the existing `?tag=` filter. The search box
+and Previous/Next links live in `templates/blog_list.html`; Previous/Next
+preserve whichever of `tag`/`q` are active. A search with no results shows
+a distinct "No posts match ..." empty state, separate from the "No posts
+tagged ..." state. Portfolio and videos are not paginated -- their seed
+counts don't warrant it.
+
+## Favicon and Open Graph tags
+
+`templates/base.html`'s `<head>` has an inline SVG data-URI favicon (no
+image file to source/generate) and `og:title` / `og:description` /
+`og:type` / `og:site_name` meta tags. `og:title` and `og:description` are
+Jinja blocks (same pattern as the existing `{% block title %}`) that
+default to the site's generic name/description and are overridden per-item
+on `templates/blog_post.html` and `templates/video_detail.html` (post/video
+title and excerpt/description, `og:type` set to `article` / `video.other`).
+
+## Continuous integration
+
+`.github/workflows/tests.yml` runs the pytest suite on every push and pull
+request targeting `master`: checkout, set up Python 3.12, install
+`requirements.txt` + `requirements-dev.txt`, run `pytest`. One job, no OS/
+Python version matrix -- this is a personal site, not a library that needs
+broad compatibility testing.
+
 ## Portfolio image uploads
 
 `portfolio_items` has an `image_filename` column (nullable). When set, the

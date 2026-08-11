@@ -13,10 +13,19 @@
   </section>
 
   <section class="section">
+    <form class="search-form" method="GET" action="{{ url_for('blog_list') }}">
+      {% if selected_tag %}<input type="hidden" name="tag" value="{{ selected_tag }}">{% endif %}
+      <input type="search" name="q" class="search-input" placeholder="Search posts by title, excerpt, or body..." value="{{ search_query }}">
+      <button class="btn btn-ghost btn-sm" type="submit">Search</button>
+      {% if search_query %}
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('blog_list', **({'tag': selected_tag} if selected_tag else {})) }}">Clear</a>
+      {% endif %}
+    </form>
+
     <div class="tag-filters">
-      <a class="tag-pill {{ 'active' if not selected_tag }}" href="{{ url_for('blog_list') }}">All</a>
+      <a class="tag-pill {{ 'active' if not selected_tag }}" href="{{ url_for('blog_list', **({'q': search_query} if search_query else {})) }}">All</a>
       {% for tag in tags %}
-      <a class="tag-pill {{ 'active' if tag == selected_tag }}" href="{{ url_for('blog_list', tag=tag) }}">{{ tag }}</a>
+      <a class="tag-pill {{ 'active' if tag == selected_tag }}" href="{{ url_for('blog_list', tag=tag, **({'q': search_query} if search_query else {})) }}">{{ tag }}</a>
       {% endfor %}
     </div>
     <div class="post-list">
@@ -38,7 +47,11 @@
       </article>
       {% else %}
       <p class="empty-state">
-        {% if selected_tag %}
+        {% if search_query and selected_tag %}
+          No posts match "{{ search_query }}" tagged "{{ selected_tag }}". <a href="{{ url_for('blog_list') }}">View all posts.</a>
+        {% elif search_query %}
+          No posts match "{{ search_query }}". <a href="{{ url_for('blog_list') }}">View all posts.</a>
+        {% elif selected_tag %}
           No posts tagged "{{ selected_tag }}" yet. <a href="{{ url_for('blog_list') }}">View all posts.</a>
         {% else %}
           No posts yet. <a href="{{ url_for('blog_new') }}">Write the first one.</a>
@@ -46,6 +59,18 @@
       </p>
       {% endfor %}
     </div>
+
+    {% if total_pages > 1 %}
+    <div class="pagination">
+      {% if has_prev %}
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('blog_list', page=page - 1, **filter_args) }}">&larr; Previous</a>
+      {% endif %}
+      <span class="pagination-status">Page {{ page }} of {{ total_pages }}</span>
+      {% if has_next %}
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('blog_list', page=page + 1, **filter_args) }}">Next &rarr;</a>
+      {% endif %}
+    </div>
+    {% endif %}
   </section>
 
 {% endblock %}

@@ -30,6 +30,14 @@ def test_create_video_inserts_row_and_shows_in_grid(client, good_auth):
     assert b"A Brand New Test Video" in listing.data
 
 
+def test_create_video_flashes_success_message(client, good_auth):
+    response = client.post(
+        "/videos/new", data=NEW_VIDEO_FORM, auth=good_auth, follow_redirects=True
+    )
+    assert response.status_code == 200
+    assert b"Video added." in response.data
+
+
 def test_edit_video_updates_row(client, good_auth):
     response = client.post(
         "/videos/1/edit",
@@ -52,6 +60,23 @@ def test_edit_video_updates_row(client, good_auth):
     assert b"An Edited Video Title" in listing.data
 
 
+def test_edit_video_flashes_success_message(client, good_auth):
+    response = client.post(
+        "/videos/1/edit",
+        data={
+            "title": "An Edited Video Title",
+            "description": "Edited description.",
+            "duration": "4:44",
+            "color_start": "#333333",
+            "color_end": "#444444",
+        },
+        auth=good_auth,
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert b"Video updated." in response.data
+
+
 def test_delete_video_removes_row(client, good_auth):
     before = _count_videos()
 
@@ -60,6 +85,12 @@ def test_delete_video_removes_row(client, good_auth):
     assert _count_videos() == before - 1
     assert client.get("/videos/1").status_code == 404
     assert client.get("/videos/1/edit", auth=good_auth).status_code == 404
+
+
+def test_delete_video_flashes_success_message(client, good_auth):
+    response = client.post("/videos/1/delete", auth=good_auth, follow_redirects=True)
+    assert response.status_code == 200
+    assert b"Video deleted." in response.data
 
 
 def test_new_video_missing_fields_shows_validation_error(client, good_auth):
