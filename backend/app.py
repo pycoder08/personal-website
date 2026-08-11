@@ -112,6 +112,18 @@ def _credentials_valid(username, password):
     ) and secrets.compare_digest(password, ADMIN_PASSWORD)
 
 
+def is_authenticated():
+    """True if the current request already carries valid admin credentials.
+
+    Used to hide management controls (New/Edit/Delete) from anonymous
+    visitors on read-only pages. This is a UX nicety, not the real security
+    boundary -- the write routes themselves still enforce auth via
+    require_auth regardless of what a template does or doesn't render.
+    """
+    auth = request.authorization
+    return bool(auth and _credentials_valid(auth.username, auth.password))
+
+
 def require_auth(view):
     """Decorator that gates a route behind HTTP Basic Auth."""
 
@@ -191,7 +203,9 @@ def portfolio():
         "SELECT * FROM portfolio_items ORDER BY id"
     ).fetchall()
     connection.close()
-    return render_template("portfolio.html", items=items)
+    return render_template(
+        "portfolio.html", items=items, is_authenticated=is_authenticated()
+    )
 
 
 @app.route("/portfolio/new", methods=["GET", "POST"])
@@ -400,6 +414,7 @@ def blog_list():
         has_prev=page > 1,
         has_next=page < total_pages,
         filter_args=filter_args,
+        is_authenticated=is_authenticated(),
     )
 
 
@@ -459,7 +474,9 @@ def blog_post(post_id):
     connection.close()
     if post is None:
         abort(404)
-    return render_template("blog_post.html", post=post)
+    return render_template(
+        "blog_post.html", post=post, is_authenticated=is_authenticated()
+    )
 
 
 @app.route("/blog/<int:post_id>/edit", methods=["GET", "POST"])
@@ -548,7 +565,9 @@ def videos():
     connection = get_db_connection()
     all_videos = connection.execute("SELECT * FROM videos ORDER BY id").fetchall()
     connection.close()
-    return render_template("videos.html", videos=all_videos)
+    return render_template(
+        "videos.html", videos=all_videos, is_authenticated=is_authenticated()
+    )
 
 
 @app.route("/videos/new", methods=["GET", "POST"])
@@ -596,7 +615,9 @@ def video_detail(video_id):
     connection.close()
     if video is None:
         abort(404)
-    return render_template("video_detail.html", video=video)
+    return render_template(
+        "video_detail.html", video=video, is_authenticated=is_authenticated()
+    )
 
 
 @app.route("/videos/<int:video_id>/edit", methods=["GET", "POST"])

@@ -10,7 +10,9 @@
       <p>A handful of projects I've built while learning -- small in scope,
          but each one taught me something I didn't know before I started.</p>
     </div>
+    {% if is_authenticated %}
     <a class="btn btn-primary" href="{{ url_for('portfolio_new') }}">+ New Project</a>
+    {% endif %}
   </section>
 
   <section class="section">
@@ -27,12 +29,14 @@
         <div class="card-body">
           <h3>{{ item['title'] }}</h3>
           <p>{{ item['description'] }}</p>
+          {% if is_authenticated %}
           <div class="card-actions">
             <a class="btn btn-ghost btn-sm" href="{{ url_for('portfolio_edit', item_id=item['id']) }}">Edit</a>
             <form class="inline-form" method="POST" action="{{ url_for('portfolio_delete', item_id=item['id']) }}" onsubmit="return confirm('Delete this project? This cannot be undone.');">
               <button class="btn btn-danger btn-sm" type="submit">Delete</button>
             </form>
           </div>
+          {% endif %}
         </div>
       </article>
       {% else %}

@@ -9,7 +9,9 @@
       <h1>Blog</h1>
       <p>A running log of what I'm building and what I've learned from it.</p>
     </div>
+    {% if is_authenticated %}
     <a class="btn btn-primary" href="{{ url_for('blog_new') }}">+ New Post</a>
+    {% endif %}
   </section>
 
   <section class="section">
@@ -38,12 +40,14 @@
         <h2><a href="{{ url_for('blog_post', post_id=post['id']) }}">{{ post['title'] }}</a></h2>
         <p>{{ post['excerpt'] }}</p>
         <a class="read-more" href="{{ url_for('blog_post', post_id=post['id']) }}">Read more &rarr;</a>
+        {% if is_authenticated %}
         <div class="card-actions">
           <a class="btn btn-ghost btn-sm" href="{{ url_for('blog_edit', post_id=post['id']) }}">Edit</a>
           <form class="inline-form" method="POST" action="{{ url_for('blog_delete', post_id=post['id']) }}" onsubmit="return confirm('Delete this post? This cannot be undone.');">
             <button class="btn btn-danger btn-sm" type="submit">Delete</button>
           </form>
         </div>
+        {% endif %}
       </article>
       {% else %}
       <p class="empty-state">
@@ -53,8 +57,10 @@
           No posts match "{{ search_query }}". <a href="{{ url_for('blog_list') }}">View all posts.</a>
         {% elif selected_tag %}
           No posts tagged "{{ selected_tag }}" yet. <a href="{{ url_for('blog_list') }}">View all posts.</a>
-        {% else %}
+        {% elif is_authenticated %}
           No posts yet. <a href="{{ url_for('blog_new') }}">Write the first one.</a>
+        {% else %}
+          No posts yet -- check back soon.
         {% endif %}
       </p>
       {% endfor %}

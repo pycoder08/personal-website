@@ -19,12 +19,14 @@
       <p>{{ paragraph }}</p>
       {% endfor %}
     </div>
+    {% if is_authenticated %}
     <div class="card-actions">
       <a class="btn btn-ghost btn-sm" href="{{ url_for('blog_edit', post_id=post['id']) }}">Edit Post</a>
       <form class="inline-form" method="POST" action="{{ url_for('blog_delete', post_id=post['id']) }}" onsubmit="return confirm('Delete this post? This cannot be undone.');">
         <button class="btn btn-danger btn-sm" type="submit">Delete Post</button>
       </form>
     </div>
+    {% endif %}
   </article>
 
 {% endblock %}

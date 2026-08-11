@@ -24,12 +24,14 @@
     </p>
     {% endif %}
 
+    {% if is_authenticated %}
     <div class="card-actions">
       <a class="btn btn-ghost btn-sm" href="{{ url_for('video_edit', video_id=video['id']) }}">Edit</a>
       <form class="inline-form" method="POST" action="{{ url_for('video_delete', video_id=video['id']) }}" onsubmit="return confirm('Delete this video? This cannot be undone.');">
         <button class="btn btn-danger btn-sm" type="submit">Delete</button>
       </form>
     </div>
+    {% endif %}
   </article>
 
 {% endblock %}

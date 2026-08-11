@@ -63,3 +63,46 @@ def test_video_delete_succeeds_with_correct_credentials(client, good_auth):
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/videos")
     assert client.get("/videos/1").status_code == 404
+
+
+# Read-only routes are always public, but the management controls (New/Edit/
+# Delete) on them should only render for a visitor whose browser already has
+# valid credentials cached -- see is_authenticated() in app.py. This is a UX
+# nicety, not the real security boundary (that's require_auth on the write
+# routes themselves, tested above), so these checks just confirm the
+# affordance is hidden/shown correctly, not that it's "secure".
+READ_ROUTES_WITH_CONTROLS = [
+    # /blog (page 1) doesn't necessarily include post id 1 -- the blog list
+    # is sorted newest-first and paginated, so check for any edit link
+    # rather than a specific post's, to avoid coupling this test to seed
+    # data ordering.
+    ("/blog", "/edit\""),
+    ("/blog/1", "/blog/1/edit"),
+    ("/portfolio", "/portfolio/1/edit"),
+    ("/videos", "/videos/1/edit"),
+    ("/videos/1", "/videos/1/edit"),
+]
+
+
+@pytest.mark.parametrize("path,control_href", READ_ROUTES_WITH_CONTROLS)
+def test_management_controls_hidden_when_anonymous(client, path, control_href):
+    response = client.get(path)
+    assert response.status_code == 200
+    assert control_href.encode() not in response.data
+
+
+@pytest.mark.parametrize("path,control_href", READ_ROUTES_WITH_CONTROLS)
+def test_management_controls_shown_when_authenticated(client, path, control_href, good_auth):
+    response = client.get(path, auth=good_auth)
+    assert response.status_code == 200
+    assert control_href.encode() in response.data
+
+
+def test_new_post_button_hidden_when_anonymous(client):
+    response = client.get("/blog")
+    assert b"+ New Post" not in response.data
+
+
+def test_new_post_button_shown_when_authenticated(client, good_auth):
+    response = client.get("/blog", auth=good_auth)
+    assert b"+ New Post" in response.data
