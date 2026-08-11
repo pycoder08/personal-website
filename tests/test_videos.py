@@ -405,7 +405,10 @@ def test_video_detail_with_youtube_url_shows_embedded_player(client, good_auth, 
     detail = client.get(f"/videos/{row['id']}")
     assert b"youtube-nocookie.com/embed/dQw4w9WgXcQ" in detail.data
     assert b"video-embed" in detail.data
-    assert b"Watch on YouTube" in detail.data
+    # The embedded player already lets you play it right here -- a separate
+    # external "watch on YouTube" link would just be redundant.
+    assert b"Watch on YouTube" not in detail.data
+    assert b"Watch the full video" not in detail.data
 
 
 def test_video_detail_without_youtube_url_shows_gradient_placeholder_not_embed(

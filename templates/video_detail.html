@@ -23,7 +23,6 @@
     </div>
     {% else %}
     <div class="video-player" style="background: linear-gradient(135deg, {{ video['color_start'] }}, {{ video['color_end'] }});">
-      <svg class="play-icon play-icon-large" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
       <span class="video-duration">{{ video['duration'] }}</span>
     </div>
     {% endif %}
@@ -31,9 +30,9 @@
     <h1>{{ video['title'] }}</h1>
     <p class="video-description">{{ video['description'] }}</p>
 
-    {% if video['video_url'] %}
+    {% if video['video_url'] and not yt_id %}
     <p class="video-link">
-      <a class="btn btn-primary btn-sm" href="{{ video['video_url'] }}" target="_blank" rel="noopener noreferrer">{{ 'Watch on YouTube' if yt_id else 'Watch the full video' }} &rarr;</a>
+      <a class="btn btn-primary btn-sm" href="{{ video['video_url'] }}" target="_blank" rel="noopener noreferrer">Watch the full video &rarr;</a>
     </p>
     {% endif %}
 
