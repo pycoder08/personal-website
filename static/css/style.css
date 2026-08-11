@@ -683,6 +683,7 @@ code {
 
 .video-thumb-link {
   display: block;
+  text-decoration: none;
 }
 
 .video-title-link {
