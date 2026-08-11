@@ -8,23 +8,15 @@
     <div class="avatar" aria-hidden="true">MC</div>
     <h1>Hi, I'm Muhammad.</h1>
     <p class="hero-sub">
-      I build small web apps and write about what I learn along the way --
-      this site is both my portfolio and my notebook.
-    </p>
-    <div class="hero-actions">
-      <a class="btn btn-primary" href="{{ url_for('portfolio') }}">View Portfolio</a>
-      <a class="btn btn-ghost" href="{{ url_for('blog_list') }}">Read the Blog</a>
-    </div>
-  </section>
-
-  <section class="section about">
-    <h2>About Me</h2>
-    <p>
       I'm an electrical engineering student, tinkerer, and math TA at Art
       of Problem Solving. I make Arduino projects that mostly work, 3D art
       in Blender, some code, and whatever else catches my interest. Based
       in Southern California.
     </p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="{{ url_for('portfolio') }}">View Portfolio</a>
+      <a class="btn btn-ghost" href="{{ url_for('blog_list') }}">Read the Blog</a>
+    </div>
   </section>
 
   {% if featured_items %}
