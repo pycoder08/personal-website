@@ -843,6 +843,7 @@ code {
 
 .footer-links {
   display: flex;
+  align-items: center;
   gap: 1.25rem;
 }
 
@@ -857,7 +858,6 @@ code {
 
 .footer-admin-link {
   opacity: 0.55;
-  font-size: 0.8rem;
 }
 
 .footer-admin-link:hover {
