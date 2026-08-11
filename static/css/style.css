@@ -2,15 +2,15 @@
    Design tokens
    ========================================================= */
 :root {
-  --bg: #f5f5fb;
+  --bg: #f7faf9;
   --surface: #ffffff;
   --text: #1c1c28;
   --muted: #666a80;
-  --border: #e7e7f1;
-  --primary: #5b5fef;
-  --primary-dark: #4338ca;
-  --primary-light: #eef0ff;
-  --accent: #f97362;
+  --border: #e2f0ee;
+  --primary: #0d9488;
+  --primary-dark: #0f766e;
+  --primary-light: #f0fdfa;
+  --accent: #f59e0b;
   --success: #16a34a;
   --radius-sm: 8px;
   --radius: 14px;
@@ -22,15 +22,15 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #14141c;
-    --surface: #1c1c28;
+    --bg: #10201e;
+    --surface: #16302c;
     --text: #eceef5;
     --muted: #9a9db3;
-    --border: #2c2c3c;
-    --primary: #8184ff;
-    --primary-dark: #a5a8ff;
-    --primary-light: #23233a;
-    --accent: #ff9a86;
+    --border: #234440;
+    --primary: #2dd4bf;
+    --primary-dark: #5eead4;
+    --primary-light: #134e4a;
+    --accent: #fbbf24;
     --success: #4ade80;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
     --shadow-hover: 0 4px 10px rgba(0, 0, 0, 0.35), 0 16px 32px rgba(0, 0, 0, 0.4);
