@@ -6,7 +6,7 @@
   <title>{% block title %}Muhammad Conn{% endblock %}</title>
   <meta name="description" content="Muhammad Conn's personal site -- portfolio, blog, and videos.">
 
-  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/FlameMeem1.png') }}">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/FlameMeem1.png') }}?v={{ logo_version }}">
 
   <!-- Open Graph tags: block-overridable per page (e.g. a blog post or
        video sets og_title/og_description to its own title/excerpt). -->
@@ -22,7 +22,7 @@
   <header class="site-header">
     <div class="header-inner">
       <a class="logo" href="{{ url_for('home') }}">
-        <span class="logo-mark"><img src="{{ url_for('static', filename='images/FlameMeem1.png') }}" alt="Muhammad Conn logo"></span>
+        <span class="logo-mark"><img src="{{ url_for('static', filename='images/FlameMeem1.png') }}?v={{ logo_version }}" alt="Muhammad Conn logo"></span>
         <span class="logo-text">Muhammad Conn</span>
       </a>
       <nav>

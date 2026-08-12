@@ -229,20 +229,26 @@ def format_display_date(date_iso):
 
 
 # ---------------------------------------------------------------------------
-# Cache-busting for static/css/style.css: the stylesheet URL never changes,
-# so browsers can and do keep serving a stale cached copy indefinitely after
-# a CSS edit. Appending ?v=<file mtime> to the <link> URL (see base.html)
-# means the URL itself changes whenever the file's contents change, forcing
-# a fresh fetch without needing a manual cache-busting version bump.
+# Cache-busting for static assets whose URL never changes on its own (CSS,
+# the site logo): browsers can and do keep serving a stale cached copy
+# indefinitely after an edit. Appending ?v=<file mtime> to the URL (see
+# base.html) means the URL itself changes whenever the file's contents
+# change, forcing a fresh fetch without needing a manual version bump.
 # ---------------------------------------------------------------------------
+def _file_mtime_version(*relative_path_parts):
+    path = os.path.join(PROJECT_ROOT, "static", *relative_path_parts)
+    try:
+        return int(os.path.getmtime(path))
+    except OSError:
+        return 0
+
+
 @app.context_processor
 def inject_asset_version():
-    css_path = os.path.join(PROJECT_ROOT, "static", "css", "style.css")
-    try:
-        version = int(os.path.getmtime(css_path))
-    except OSError:
-        version = 0
-    return {"asset_version": version}
+    return {
+        "asset_version": _file_mtime_version("css", "style.css"),
+        "logo_version": _file_mtime_version("images", "FlameMeem1.png"),
+    }
 
 
 _YOUTUBE_ID_RE = re.compile(
