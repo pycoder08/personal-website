@@ -115,3 +115,66 @@ def test_admin_link_requires_auth_and_redirects_to_blog(client, good_auth, bad_a
     response = client.get("/admin", auth=good_auth)
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/blog")
+
+
+# ---------------------------------------------------------------------------
+# Preview mode: lets the logged-in admin browse the site as an anonymous
+# visitor would, without logging out. The browser test client persists
+# cookies across requests on the same `client` instance, so entering preview
+# mode in one request and checking its effect in the next works the same way
+# it does in a real browser.
+# ---------------------------------------------------------------------------
+def test_preview_start_and_stop_require_auth(client, bad_auth):
+    assert client.get("/admin/preview/start").status_code == 401
+    assert client.get("/admin/preview/start", auth=bad_auth).status_code == 401
+    assert client.get("/admin/preview/stop").status_code == 401
+    assert client.get("/admin/preview/stop", auth=bad_auth).status_code == 401
+
+
+def test_preview_mode_hides_controls_from_the_admin_who_enabled_it(client, good_auth):
+    # Before entering preview mode: controls are visible as normal.
+    assert b"+ New Post" in client.get("/blog", auth=good_auth).data
+
+    start_response = client.get("/admin/preview/start", auth=good_auth)
+    assert start_response.status_code == 302
+
+    # Same browser (same cookies), same cached credentials -- but now
+    # previewing, so the management controls must be hidden.
+    preview_response = client.get("/blog", auth=good_auth)
+    assert b"+ New Post" not in preview_response.data
+    assert b"Previewing as a visitor" in preview_response.data
+    assert b"Exit preview" in preview_response.data
+
+
+def test_preview_mode_write_routes_still_require_auth_normally(client, good_auth):
+    """Preview mode only hides the *affordance* -- the write routes
+    themselves are unaffected, exactly like anonymous visitors are already
+    blocked by require_auth regardless of what a template renders."""
+    client.get("/admin/preview/start", auth=good_auth)
+    response = client.get("/blog/new", auth=good_auth)
+    assert response.status_code == 200
+
+
+def test_exiting_preview_mode_restores_controls(client, good_auth):
+    client.get("/admin/preview/start", auth=good_auth)
+    assert b"+ New Post" not in client.get("/blog", auth=good_auth).data
+
+    stop_response = client.get("/admin/preview/stop", auth=good_auth)
+    assert stop_response.status_code == 302
+
+    restored_response = client.get("/blog", auth=good_auth)
+    assert b"+ New Post" in restored_response.data
+    assert b"Exited preview mode" in restored_response.data
+
+
+def test_anonymous_visitor_never_sees_preview_toggle_link(client):
+    assert b"Preview as Visitor" not in client.get("/blog").data
+
+
+def test_preview_start_redirects_to_the_referring_page(client, good_auth):
+    response = client.get(
+        "/admin/preview/start",
+        auth=good_auth,
+        headers={"Referer": "http://localhost/portfolio"},
+    )
+    assert response.headers["Location"].endswith("/portfolio")

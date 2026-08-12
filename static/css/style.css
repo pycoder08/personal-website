@@ -152,6 +152,25 @@ code {
 }
 
 /* =========================================================
+   Preview-mode banner (admin browsing the site as a visitor would)
+   ========================================================= */
+.preview-banner {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  border-bottom: 1px solid var(--accent-dark);
+  color: var(--accent-dark);
+  text-align: center;
+  padding: 0.6rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.preview-banner a {
+  color: inherit;
+  text-decoration: underline;
+  margin-left: 0.5rem;
+}
+
+/* =========================================================
    Flash messages (success confirmations after create/edit/delete)
    ========================================================= */
 .flash-messages {

@@ -34,6 +34,13 @@
     </div>
   </header>
 
+  {% if previewing %}
+  <div class="preview-banner">
+    Previewing as a visitor -- admin controls are hidden.
+    <a href="{{ url_for('admin_preview_stop') }}">Exit preview</a>
+  </div>
+  {% endif %}
+
   <main>
     {% with messages = get_flashed_messages() %}
     {% if messages %}
@@ -56,6 +63,9 @@
         <a href="{{ url_for('blog_list') }}">Blog</a>
         <a href="{{ url_for('videos') }}">Videos</a>
         <a href="https://github.com/pycoder08" target="_blank" rel="noopener noreferrer">GitHub</a>
+        {% if is_authenticated %}
+        <a href="{{ url_for('admin_preview_start') }}" class="footer-admin-link">Preview as Visitor</a>
+        {% endif %}
         <a href="{{ url_for('admin') }}" class="footer-admin-link">Admin</a>
       </div>
     </div>

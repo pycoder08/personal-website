@@ -18,7 +18,7 @@ from datetime import datetime
 from functools import wraps
 
 import yt_dlp
-from flask import Flask, Response, abort, flash, redirect, render_template, request, url_for
+from flask import Flask, Response, abort, flash, redirect, render_template, request, session, url_for
 from werkzeug.utils import secure_filename
 
 from db import get_db_connection
@@ -159,16 +159,38 @@ def _credentials_valid(username, password):
     ) and secrets.compare_digest(password, ADMIN_PASSWORD)
 
 
+def _has_admin_credentials():
+    """True if the current request's browser-cached Basic Auth credentials
+    are valid, regardless of preview mode (see is_authenticated())."""
+    auth = request.authorization
+    return bool(auth and _credentials_valid(auth.username, auth.password))
+
+
 def is_authenticated():
-    """True if the current request already carries valid admin credentials.
+    """True if the current request should see admin management controls.
 
     Used to hide management controls (New/Edit/Delete) from anonymous
     visitors on read-only pages. This is a UX nicety, not the real security
     boundary -- the write routes themselves still enforce auth via
     require_auth regardless of what a template does or doesn't render.
+
+    Valid credentials alone aren't enough: an admin who has switched into
+    preview mode (/admin/preview/start) still has those credentials cached
+    in their browser, but should see the site exactly as a visitor would
+    until they exit preview (/admin/preview/stop).
     """
-    auth = request.authorization
-    return bool(auth and _credentials_valid(auth.username, auth.password))
+    return _has_admin_credentials() and not session.get("preview_mode", False)
+
+
+@app.context_processor
+def inject_auth_state():
+    """Makes is_authenticated and previewing available in every template
+    automatically, so the preview-mode banner in base.html doesn't need
+    every single route to remember to pass it in."""
+    return {
+        "is_authenticated": is_authenticated(),
+        "previewing": _has_admin_credentials() and session.get("preview_mode", False),
+    }
 
 
 def require_auth(view):
@@ -294,7 +316,7 @@ def portfolio():
     ).fetchall()
     connection.close()
     return render_template(
-        "portfolio.html", items=items, is_authenticated=is_authenticated()
+        "portfolio.html", items=items
     )
 
 
@@ -504,7 +526,6 @@ def blog_list():
         has_prev=page > 1,
         has_next=page < total_pages,
         filter_args=filter_args,
-        is_authenticated=is_authenticated(),
     )
 
 
@@ -565,7 +586,7 @@ def blog_post(post_id):
     if post is None:
         abort(404)
     return render_template(
-        "blog_post.html", post=post, is_authenticated=is_authenticated()
+        "blog_post.html", post=post
     )
 
 
@@ -656,7 +677,7 @@ def videos():
     all_videos = connection.execute("SELECT * FROM videos ORDER BY id").fetchall()
     connection.close()
     return render_template(
-        "videos.html", videos=all_videos, is_authenticated=is_authenticated()
+        "videos.html", videos=all_videos
     )
 
 
@@ -717,7 +738,7 @@ def video_detail(video_id):
     if video is None:
         abort(404)
     return render_template(
-        "video_detail.html", video=video, is_authenticated=is_authenticated()
+        "video_detail.html", video=video
     )
 
 
@@ -813,6 +834,39 @@ def admin():
     show up on their own (see is_authenticated()), so this just redirects
     straight to the blog afterward."""
     return redirect(url_for("blog_list"))
+
+
+def _redirect_back():
+    """Redirect to the page the request came from, falling back to the
+    homepage. Only trusts Referer when it points back at this same site --
+    the header is browser-supplied from wherever you actually just were,
+    never attacker-controlled input, but this keeps it from ever sending
+    you somewhere else entirely if a browser sends something unexpected."""
+    referrer = request.referrer
+    if referrer and referrer.startswith(request.host_url):
+        return redirect(referrer)
+    return redirect(url_for("home"))
+
+
+@app.route("/admin/preview/start")
+@require_auth
+def admin_preview_start():
+    """Lets the logged-in admin browse the site as an anonymous visitor
+    would -- New/Edit/Delete controls hidden -- without logging out. The
+    browser keeps sending its cached Basic Auth credentials the whole time
+    (require_auth above still honors them), so exiting preview never
+    requires typing the password again."""
+    session["preview_mode"] = True
+    flash("Previewing as a visitor. Admin controls are hidden until you exit preview.")
+    return _redirect_back()
+
+
+@app.route("/admin/preview/stop")
+@require_auth
+def admin_preview_stop():
+    session.pop("preview_mode", None)
+    flash("Exited preview mode.")
+    return _redirect_back()
 
 
 @app.errorhandler(404)
