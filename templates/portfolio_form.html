@@ -29,7 +29,8 @@
       <textarea id="excerpt" name="excerpt" rows="2" placeholder="A one- or two-sentence summary, shown on the project grid" required>{{ form.get('excerpt', '') if form else '' }}</textarea>
 
       <label for="body">Full Write-up</label>
-      <textarea id="body" name="body" rows="6" placeholder="The longer version, shown only on this project's own page" required>{{ form.get('body', '') if form else '' }}</textarea>
+      <textarea id="body" name="body" rows="6" placeholder="The longer version, shown only on this project's own page. Written in Markdown -- headers, **bold**, links, lists, code blocks, and images all work." required>{{ form.get('body', '') if form else '' }}</textarea>
+      <p class="form-hint">Written in Markdown. Need to insert an image? <a href="{{ url_for('admin_upload_image') }}" target="_blank" rel="noopener noreferrer">Upload one here</a> (opens in a new tab) and paste the resulting <code>![](url)</code> wherever it belongs.</p>
 
       <label for="project_url">Project Link (optional)</label>
       <input type="url" id="project_url" name="project_url" placeholder="https://github.com/you/project" value="{{ form.get('project_url', '') if form else '' }}">

@@ -39,7 +39,8 @@
       <textarea id="excerpt" name="excerpt" rows="2" placeholder="A one or two sentence teaser for the blog list" required>{{ form.get('excerpt', '') if form else '' }}</textarea>
 
       <label for="body">Body</label>
-      <textarea id="body" name="body" rows="10" placeholder="The full post. Separate paragraphs with a blank line." required>{{ form.get('body', '') if form else '' }}</textarea>
+      <textarea id="body" name="body" rows="10" placeholder="The full post, in Markdown -- headers, **bold**, links, lists, code blocks, and images all work." required>{{ form.get('body', '') if form else '' }}</textarea>
+      <p class="form-hint">Written in Markdown. Need to insert an image? <a href="{{ url_for('admin_upload_image') }}" target="_blank" rel="noopener noreferrer">Upload one here</a> (opens in a new tab) and paste the resulting <code>![](url)</code> wherever it belongs.</p>
 
       <div class="form-actions">
         <a class="btn btn-ghost" href="{{ url_for('blog_post', post_id=post['id']) if post else url_for('blog_list') }}">Cancel</a>

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Upload an Image -- Muhammad Conn{% endblock %}
+
+{% block content %}
+
+  <section class="page-heading">
+    <h1>Upload an Image</h1>
+    <p>Uploads a file to <code>static/images/uploads/</code> and gives you a
+       URL to paste into a blog post or portfolio write-up's Markdown body
+       as <code>![alt text](url)</code>. Not tied to any specific post or
+       project -- just a way to get an image hosted on the site with a
+       URL to reference.</p>
+  </section>
+
+  <section class="section form-section">
+    {% if error %}
+    <div class="form-error">{{ error }}</div>
+    {% endif %}
+
+    {% if uploaded_url %}
+    <div class="upload-result">
+      <label for="uploaded-url">Image URL</label>
+      <div class="copy-field">
+        <input type="text" id="uploaded-url" value="{{ uploaded_url }}" readonly onclick="this.select()">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('uploaded-url').value); this.textContent='Copied!';">Copy</button>
+      </div>
+
+      <label for="markdown-snippet">Markdown Snippet</label>
+      <div class="copy-field">
+        <input type="text" id="markdown-snippet" value="![]({{ uploaded_url }})" readonly onclick="this.select()">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('markdown-snippet').value); this.textContent='Copied!';">Copy</button>
+      </div>
+
+      <img class="upload-preview" src="{{ uploaded_url }}" alt="Uploaded image preview">
+    </div>
+    {% endif %}
+
+    <form class="post-form" method="POST" enctype="multipart/form-data">
+      <label for="image">Image File</label>
+      <input type="file" id="image" name="image" accept=".png,.jpg,.jpeg,.gif,.webp,image/png,image/jpeg,image/gif,image/webp" required>
+      <p class="form-hint">PNG, JPG, GIF, or WEBP -- 5MB max.</p>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">Upload</button>
+      </div>
+    </form>
+  </section>
+
+{% endblock %}

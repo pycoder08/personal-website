@@ -17,8 +17,10 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 
+import markdown as markdown_lib
 import yt_dlp
 from flask import Flask, Response, abort, flash, redirect, render_template, request, session, url_for
+from markupsafe import Markup
 from werkzeug.utils import secure_filename
 
 from db import get_db_connection
@@ -33,18 +35,30 @@ app = Flask(
 )
 
 # ---------------------------------------------------------------------------
-# Portfolio image uploads: the only place in the app that accepts binary
-# file input. Uploaded files are saved under static/images/portfolio/ using
-# a freshly generated filename (never the client-supplied one) so there's
-# no path-traversal risk and no chance of two uploads colliding.
+# Image uploads: the only place in the app that accepts binary file input.
+# Uploaded files are saved under static/images/... using a freshly
+# generated filename (never the client-supplied one) so there's no
+# path-traversal risk and no chance of two uploads colliding.
+#
+# PORTFOLIO_IMAGE_DIR holds each project's one thumbnail (tied 1:1 to a
+# portfolio_items row via image_filename). CONTENT_IMAGE_DIR holds inline
+# images referenced from Markdown body text (blog posts, portfolio
+# write-ups) via the /admin/upload-image utility -- these aren't tied to
+# any single row/column, just referenced by URL from whatever body text
+# happens to link to them, so there's no automatic cleanup when a post/
+# project is deleted (matching the personal-site scale this is built for;
+# an orphaned image now and then isn't worth a reference-counting system).
 # ---------------------------------------------------------------------------
-# Tests point this at a temporary upload directory via the
-# PORTFOLIO_IMAGE_DIR environment variable (see the project root
-# conftest.py) so they never write into the real static/images/portfolio/.
-# Normal local dev and production never set that variable, so this resolves
-# to the same hardcoded folder as before.
+# Tests point these at temporary upload directories via the
+# PORTFOLIO_IMAGE_DIR / CONTENT_IMAGE_DIR environment variables (see the
+# project root conftest.py) so they never write into the real
+# static/images/ folders. Normal local dev and production never set these,
+# so they resolve to the same hardcoded folders as before.
 PORTFOLIO_IMAGE_DIR = os.environ.get(
     "PORTFOLIO_IMAGE_DIR", os.path.join(PROJECT_ROOT, "static", "images", "portfolio")
+)
+CONTENT_IMAGE_DIR = os.environ.get(
+    "CONTENT_IMAGE_DIR", os.path.join(PROJECT_ROOT, "static", "images", "uploads")
 )
 ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
@@ -183,6 +197,35 @@ def delete_portfolio_image(filename):
     path = os.path.join(PORTFOLIO_IMAGE_DIR, filename)
     if os.path.isfile(path):
         os.remove(path)
+
+
+def save_content_image(file_storage):
+    """Save an image uploaded via /admin/upload-image (for inline Markdown
+    images) under a safe, collision-proof name and return the URL path to
+    reference it from a blog post or portfolio write-up's body text."""
+    os.makedirs(CONTENT_IMAGE_DIR, exist_ok=True)
+    safe_original = secure_filename(file_storage.filename)
+    ext = os.path.splitext(safe_original)[1].lower()
+    generated_name = f"{uuid.uuid4().hex}{ext}"
+    file_storage.save(os.path.join(CONTENT_IMAGE_DIR, generated_name))
+    return url_for("static", filename=f"images/uploads/{generated_name}")
+
+
+# ---------------------------------------------------------------------------
+# Markdown rendering for blog post / portfolio project body text. Only the
+# authenticated site owner can ever write this content (every route that
+# saves a body is require_auth-gated, and there's no comment system or any
+# other way for a visitor to submit text) -- the rendered HTML is trusted
+# to the exact same degree the raw Python/template code already is, so it's
+# marked safe and passed through to the page unescaped rather than run
+# through an HTML sanitizer.
+# ---------------------------------------------------------------------------
+def render_markdown(text):
+    html = markdown_lib.markdown(text, extensions=["extra", "sane_lists"])
+    return Markup(html)
+
+
+app.jinja_env.filters["markdown"] = render_markdown
 
 
 # ---------------------------------------------------------------------------
@@ -1036,6 +1079,34 @@ def admin_preview_stop():
     session.pop("preview_mode", None)
     flash("Exited preview mode.")
     return _redirect_back()
+
+
+@app.route("/admin/upload-image", methods=["GET", "POST"])
+@require_auth
+def admin_upload_image():
+    """A small standalone utility, not tied to any specific post/project:
+    upload an image, get back a URL to paste into a Markdown body as
+    `![](url)`. Exists because inline images in blog/portfolio write-ups
+    need a real URL to point at, and this is the only way to get one for
+    anything beyond a portfolio item's single thumbnail."""
+    uploaded_url = None
+    error = None
+
+    if request.method == "POST":
+        image_file = request.files.get("image")
+        has_upload = image_file is not None and image_file.filename.strip() != ""
+
+        if not has_upload:
+            error = "Choose an image file first."
+        elif not _has_allowed_image_extension(image_file.filename):
+            error = (
+                "That image type isn't supported -- please upload a "
+                ".png, .jpg, .jpeg, .gif, or .webp file (5MB max)."
+            )
+        else:
+            uploaded_url = save_content_image(image_file)
+
+    return render_template("admin_upload_image.html", uploaded_url=uploaded_url, error=error)
 
 
 ANALYTICS_PAGE_LABELS = {

@@ -17,9 +17,7 @@
 
     <h1>{{ item['title'] }}</h1>
     <div class="portfolio-body">
-      {% for paragraph in item['body'].split('\n\n') %}
-      <p>{{ paragraph }}</p>
-      {% endfor %}
+      {{ item['body'] | markdown }}
     </div>
 
     {% if item['project_url'] %}

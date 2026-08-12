@@ -671,10 +671,97 @@ code {
   letter-spacing: -0.01em;
 }
 
-.post-body p {
+/* Markdown-rendered body content (blog posts + portfolio write-ups) */
+.post-body p,
+.portfolio-body p {
   margin-bottom: 1.15rem;
   max-width: 68ch;
   color: var(--text);
+}
+
+.post-body h1,
+.portfolio-body h1,
+.post-body h2,
+.portfolio-body h2 {
+  font-size: 1.5rem;
+  margin: 1.75rem 0 0.85rem;
+}
+
+.post-body h3,
+.portfolio-body h3 {
+  font-size: 1.25rem;
+  margin: 1.5rem 0 0.75rem;
+}
+
+.post-body h4,
+.portfolio-body h4 {
+  font-size: 1.05rem;
+  margin: 1.25rem 0 0.6rem;
+}
+
+.post-body ul,
+.portfolio-body ul,
+.post-body ol,
+.portfolio-body ol {
+  list-style: revert;
+  margin: 0 0 1.15rem 1.4rem;
+  max-width: 68ch;
+  color: var(--text);
+}
+
+.post-body li,
+.portfolio-body li {
+  margin-bottom: 0.35rem;
+}
+
+.post-body blockquote,
+.portfolio-body blockquote {
+  border-left: 3px solid var(--primary);
+  padding-left: 1rem;
+  margin: 0 0 1.15rem;
+  color: var(--muted);
+  max-width: 68ch;
+}
+
+.post-body pre,
+.portfolio-body pre {
+  background: var(--primary-light);
+  border-radius: var(--radius-sm);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  margin-bottom: 1.15rem;
+}
+
+.post-body pre code,
+.portfolio-body pre code {
+  background: none;
+  padding: 0;
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.post-body a,
+.portfolio-body a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.post-body a:hover,
+.portfolio-body a:hover {
+  color: var(--primary-dark);
+}
+
+.post-body img,
+.portfolio-body img {
+  border-radius: var(--radius-sm);
+  margin-bottom: 1.15rem;
+}
+
+.post-body hr,
+.portfolio-body hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.75rem 0;
 }
 
 /* =========================================================
@@ -882,12 +969,6 @@ code {
   margin-bottom: 0.75rem;
 }
 
-.portfolio-body p {
-  margin-bottom: 1.15rem;
-  max-width: 68ch;
-  color: var(--text);
-}
-
 .portfolio-link {
   margin: 0.25rem 0 1.75rem;
 }
@@ -1067,6 +1148,54 @@ code {
   color: var(--muted);
   font-family: monospace;
   font-size: 0.85rem;
+}
+
+/* =========================================================
+   Image upload utility (/admin/upload-image)
+   ========================================================= */
+.upload-result {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.75rem;
+  box-shadow: var(--shadow);
+}
+
+.upload-result label {
+  font-weight: 600;
+  font-size: 0.88rem;
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
+.upload-result label:not(:first-child) {
+  margin-top: 1rem;
+}
+
+.copy-field {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.copy-field input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+.upload-preview {
+  max-width: 240px;
+  border-radius: var(--radius-sm);
+  margin-top: 1rem;
+  border: 1px solid var(--border);
 }
 
 /* =========================================================
