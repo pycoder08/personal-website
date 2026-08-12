@@ -25,12 +25,22 @@
         <span class="logo-mark"><img src="{{ url_for('static', filename='images/FlameMeem1.png') }}?v={{ logo_version }}" alt="Muhammad Conn logo"></span>
         <span class="logo-text">Muhammad Conn</span>
       </a>
-      <nav>
-        <a href="{{ url_for('home') }}" class="{{ 'active' if request.endpoint == 'home' else '' }}">Home</a>
-        <a href="{{ url_for('portfolio') }}" class="{{ 'active' if request.endpoint == 'portfolio' else '' }}">Portfolio</a>
-        <a href="{{ url_for('blog_list') }}" class="{{ 'active' if request.endpoint in ['blog_list', 'blog_post', 'blog_new'] else '' }}">Blog</a>
-        <a href="{{ url_for('videos') }}" class="{{ 'active' if request.endpoint in ['videos', 'video_detail', 'video_new', 'video_edit'] else '' }}">Videos</a>
-      </nav>
+      <div class="header-actions">
+        <nav>
+          <a href="{{ url_for('home') }}" class="{{ 'active' if request.endpoint == 'home' else '' }}">Home</a>
+          <a href="{{ url_for('portfolio') }}" class="{{ 'active' if request.endpoint == 'portfolio' else '' }}">Portfolio</a>
+          <a href="{{ url_for('blog_list') }}" class="{{ 'active' if request.endpoint in ['blog_list', 'blog_post', 'blog_new'] else '' }}">Blog</a>
+          <a href="{{ url_for('videos') }}" class="{{ 'active' if request.endpoint in ['videos', 'video_detail', 'video_new', 'video_edit'] else '' }}">Videos</a>
+        </nav>
+        {% if is_authenticated or previewing %}
+        <a class="preview-toggle {{ 'is-on' if previewing }}"
+           href="{{ url_for('admin_preview_stop') if previewing else url_for('admin_preview_start') }}"
+           title="{{ 'Exit preview mode' if previewing else 'Preview the site as a visitor would see it' }}">
+          <span class="preview-toggle-label">{{ 'Previewing as visitor' if previewing else 'Preview as visitor' }}</span>
+          <span class="preview-toggle-track"><span class="preview-toggle-thumb"></span></span>
+        </a>
+        {% endif %}
+      </div>
     </div>
   </header>
 
@@ -63,9 +73,6 @@
         <a href="{{ url_for('blog_list') }}">Blog</a>
         <a href="{{ url_for('videos') }}">Videos</a>
         <a href="https://github.com/pycoder08" target="_blank" rel="noopener noreferrer">GitHub</a>
-        {% if is_authenticated %}
-        <a href="{{ url_for('admin_preview_start') }}" class="footer-admin-link">Preview as Visitor</a>
-        {% endif %}
         <a href="{{ url_for('admin') }}" class="footer-admin-link">Admin</a>
       </div>
     </div>
