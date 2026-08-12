@@ -173,6 +173,11 @@ PORTFOLIO_ITEMS = [
         "Personal Site Rebuild",
         "A full rebuild of this very site: Flask backend, SQLite-backed "
         "blog, and a from-scratch CSS design system.",
+        "Started as a hand-written HTML/CSS exercise, then grew into a "
+        "full Flask + Jinja2 + SQLite app with CRUD for blog posts, "
+        "portfolio items, and videos, HTTP Basic Auth for admin routes, "
+        "a pytest suite, and CI on every push. Self-hosted on a "
+        "Raspberry Pi 5 behind Waitress.",
         "#6366f1",
         "#8b5cf6",
     ),
@@ -180,6 +185,11 @@ PORTFOLIO_ITEMS = [
         "SQL Study Tracker",
         "A command-line tool that logs study sessions to a local database "
         "and prints weekly summaries of time spent per topic.",
+        "Built to answer one question honestly: was I actually studying "
+        "math as much as I thought? Each session gets logged with a "
+        "topic and duration, and a weekly summary command aggregates "
+        "everything into a per-topic breakdown straight in the "
+        "terminal -- no spreadsheet required.",
         "#0ea5e9",
         "#22d3ee",
     ),
@@ -187,6 +197,10 @@ PORTFOLIO_ITEMS = [
         "Weather CLI",
         "A small Python script that fetches a forecast for any city and "
         "prints a clean, color-coded summary straight to the terminal.",
+        "Pulls current conditions and a short forecast from a public "
+        "weather API, then formats the output with ANSI color codes so "
+        "temperature extremes and rain chances are readable at a glance "
+        "without opening a browser tab.",
         "#f97316",
         "#facc15",
     ),
@@ -194,6 +208,11 @@ PORTFOLIO_ITEMS = [
         "Budget Tracker Automation",
         "A spreadsheet automation project that categorizes transactions "
         "and flags months where spending jumps more than 15%.",
+        "Reads exported transaction data, assigns each row a category "
+        "based on a set of keyword rules, and compares month-over-month "
+        "totals per category -- flagging anything that jumps more than "
+        "15% so it's easy to catch a spending pattern before it becomes "
+        "a habit.",
         "#10b981",
         "#34d399",
     ),
@@ -201,6 +220,11 @@ PORTFOLIO_ITEMS = [
         "Chess Puzzle Solver",
         "A brute-force puzzle solver for small chess endgames, built to "
         "learn recursion and board-state representation.",
+        "Represents the board as a simple grid and searches recursively "
+        "for a forced mate within a small number of moves. Not fast "
+        "enough for anything beyond small endgames, but it was never "
+        "about speed -- it was about finally understanding recursion by "
+        "watching it search a real problem.",
         "#1f2937",
         "#4b5563",
     ),
@@ -208,6 +232,11 @@ PORTFOLIO_ITEMS = [
         "Flask Blog Engine",
         "The mini blogging engine powering this site's /blog section, "
         "complete with a parameterized add-post form.",
+        "Posts live in a SQLite table and render through Jinja2 "
+        "templates, with tag filtering, search, and pagination layered "
+        "on top over time. The add-post form uses parameterized queries "
+        "throughout, so there's no way for typed content to be "
+        "interpreted as SQL.",
         "#e11d48",
         "#fb7185",
     ),
@@ -215,6 +244,11 @@ PORTFOLIO_ITEMS = [
         "Desktop File Organizer",
         "A script that watches a downloads folder and automatically sorts "
         "new files into folders by type and date.",
+        "Runs as a background watcher on the downloads folder and moves "
+        "each new file into a type-based subfolder (images, documents, "
+        "archives, etc.), then further into a folder named for the "
+        "current month -- so nothing has to be sorted by hand at the "
+        "end of the week.",
         "#7c3aed",
         "#a855f7",
     ),
@@ -222,6 +256,10 @@ PORTFOLIO_ITEMS = [
         "Habit Tracker Widget",
         "A tiny local web app for checking off daily habits, with streaks "
         "stored in SQLite and a calendar-style heatmap view.",
+        "Each habit gets a daily checkbox and a running streak count "
+        "stored in SQLite, plus a GitHub-style heatmap calendar so a "
+        "month of consistency (or the lack of it) is visible at a "
+        "glance instead of buried in a list.",
         "#059669",
         "#10b981",
     ),
@@ -229,6 +267,11 @@ PORTFOLIO_ITEMS = [
         "Retro Terminal Game",
         "A text-based adventure game played entirely in the terminal, "
         "written to practice control flow and state management.",
+        "A small choose-your-own-adventure game driven entirely by a "
+        "state machine of rooms and choices, played through plain "
+        "terminal input/output. Built specifically to practice managing "
+        "game state cleanly instead of falling back on a tangle of "
+        "if/else branches.",
         "#0f172a",
         "#334155",
     ),
@@ -306,10 +349,12 @@ SCHEMA_SCRIPT = """
     CREATE TABLE portfolio_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
-        description TEXT NOT NULL,
+        excerpt TEXT NOT NULL,
+        body TEXT NOT NULL,
         color_start TEXT NOT NULL,
         color_end TEXT NOT NULL,
-        image_filename TEXT
+        image_filename TEXT,
+        project_url TEXT
     );
 
     CREATE TABLE videos (
@@ -356,8 +401,8 @@ def seed_sample_data(connection):
     connection.executemany(
         """
         INSERT INTO portfolio_items
-            (title, description, color_start, color_end)
-        VALUES (?, ?, ?, ?)
+            (title, excerpt, body, color_start, color_end)
+        VALUES (?, ?, ?, ?, ?)
         """,
         PORTFOLIO_ITEMS,
     )

@@ -882,9 +882,14 @@ code {
   margin-bottom: 0.75rem;
 }
 
-.portfolio-description {
-  color: var(--muted);
-  max-width: 60ch;
+.portfolio-body p {
+  margin-bottom: 1.15rem;
+  max-width: 68ch;
+  color: var(--text);
+}
+
+.portfolio-link {
+  margin: 0.25rem 0 1.75rem;
 }
 
 .portfolio-full .card-actions {

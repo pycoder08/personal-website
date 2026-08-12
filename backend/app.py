@@ -100,32 +100,52 @@ _ensure_page_views_table()
 
 
 # ---------------------------------------------------------------------------
-# Portfolio items originally required a manually-typed emoji `icon` for
-# their gradient-placeholder fallback. Now that every new project gets the
-# same standardized gradient (see DEFAULT_PORTFOLIO_COLOR_START/END above)
-# instead, a plain gradient with no icon renders fine, so that column is no
-# longer needed. SQLite's ALTER TABLE can't drop a column on every version
-# still in the wild, so this rebuilds the table without it instead --
-# idempotent (a no-op once already migrated) and safe to run against the
-# live database, which currently has zero portfolio rows anyway.
+# Portfolio schema migrations. SQLite's ALTER TABLE can't drop a column or
+# split one column's data into two on every version still in the wild, so
+# each step below rebuilds the table instead -- idempotent (a no-op once
+# already migrated) and safe to run against the live database.
+#
+# History: originally required a manually-typed emoji `icon` for the
+# gradient-placeholder fallback (dropped once every new project got a
+# standardized gradient instead, so a plain gradient with no icon renders
+# fine). Then a single `description` shown identically on both the grid
+# card and the detail page (split into a short `excerpt`, shown on cards,
+# and a longer `body`, shown only on the detail page -- same shape as
+# `posts`) plus an optional `project_url` link to a repo/live demo.
 # ---------------------------------------------------------------------------
 def _ensure_portfolio_schema():
     connection = get_db_connection()
-    columns = {row["name"] for row in connection.execute("PRAGMA table_info(portfolio_items)")}
-    if "icon" in columns:
+    table_exists = (
+        connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'portfolio_items'"
+        ).fetchone()
+        is not None
+    )
+    # Nothing to migrate if the table doesn't exist yet at all -- that's a
+    # database that's never had init_db.py run against it (fresh test DB,
+    # fresh clone), and init_schema() there already creates the table with
+    # today's correct columns directly.
+    columns = (
+        {row["name"] for row in connection.execute("PRAGMA table_info(portfolio_items)")}
+        if table_exists
+        else set()
+    )
+    if table_exists and "excerpt" not in columns:
         connection.executescript(
             """
             CREATE TABLE portfolio_items_new (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT NOT NULL,
-                description TEXT NOT NULL,
+                excerpt TEXT NOT NULL,
+                body TEXT NOT NULL,
                 color_start TEXT NOT NULL,
                 color_end TEXT NOT NULL,
-                image_filename TEXT
+                image_filename TEXT,
+                project_url TEXT
             );
             INSERT INTO portfolio_items_new
-                (id, title, description, color_start, color_end, image_filename)
-                SELECT id, title, description, color_start, color_end, image_filename
+                (id, title, excerpt, body, color_start, color_end, image_filename)
+                SELECT id, title, description, description, color_start, color_end, image_filename
                 FROM portfolio_items;
             DROP TABLE portfolio_items;
             ALTER TABLE portfolio_items_new RENAME TO portfolio_items;
@@ -454,12 +474,14 @@ def portfolio():
 def portfolio_new():
     if request.method == "POST":
         title = request.form.get("title", "").strip()
-        description = request.form.get("description", "").strip()
+        excerpt = request.form.get("excerpt", "").strip()
+        body = request.form.get("body", "").strip()
+        project_url = request.form.get("project_url", "").strip() or None
         image_file = request.files.get("image")
         has_upload = image_file is not None and image_file.filename.strip() != ""
 
         error = None
-        if not title or not description:
+        if not title or not excerpt or not body:
             error = "Please fill out every field before saving."
         elif has_upload and not _has_allowed_image_extension(image_file.filename):
             error = (
@@ -479,15 +501,17 @@ def portfolio_new():
             connection.execute(
                 """
                 INSERT INTO portfolio_items
-                    (title, description, color_start, color_end, image_filename)
-                VALUES (?, ?, ?, ?, ?)
+                    (title, excerpt, body, color_start, color_end, image_filename, project_url)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     title,
-                    description,
+                    excerpt,
+                    body,
                     DEFAULT_PORTFOLIO_COLOR_START,
                     DEFAULT_PORTFOLIO_COLOR_END,
                     image_filename,
+                    project_url,
                 ),
             )
             connection.commit()
@@ -527,12 +551,14 @@ def portfolio_edit(item_id):
 
     if request.method == "POST":
         title = request.form.get("title", "").strip()
-        description = request.form.get("description", "").strip()
+        excerpt = request.form.get("excerpt", "").strip()
+        body = request.form.get("body", "").strip()
+        project_url = request.form.get("project_url", "").strip() or None
         image_file = request.files.get("image")
         has_upload = image_file is not None and image_file.filename.strip() != ""
 
         error = None
-        if not title or not description:
+        if not title or not excerpt or not body:
             error = "Please fill out every field before saving."
         elif has_upload and not _has_allowed_image_extension(image_file.filename):
             error = (
@@ -558,10 +584,10 @@ def portfolio_edit(item_id):
             connection.execute(
                 """
                 UPDATE portfolio_items
-                SET title = ?, description = ?, image_filename = ?
+                SET title = ?, excerpt = ?, body = ?, image_filename = ?, project_url = ?
                 WHERE id = ?
                 """,
-                (title, description, image_filename, item_id),
+                (title, excerpt, body, image_filename, project_url, item_id),
             )
             connection.commit()
             connection.close()
@@ -575,12 +601,14 @@ def portfolio_edit(item_id):
         if has_upload:
             delete_portfolio_image(old_image_filename)
         flash("Project updated.")
-        return redirect(url_for("portfolio"))
+        return redirect(url_for("portfolio_detail", item_id=item_id))
 
     connection.close()
     form = {
         "title": item["title"],
-        "description": item["description"],
+        "excerpt": item["excerpt"],
+        "body": item["body"],
+        "project_url": item["project_url"] or "",
     }
     return render_template("portfolio_form.html", error=None, form=form, item=item)
 

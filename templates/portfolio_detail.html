@@ -2,7 +2,7 @@
 
 {% block title %}{{ item['title'] }} -- Muhammad Conn{% endblock %}
 {% block og_title %}{{ item['title'] }}{% endblock %}
-{% block og_description %}{{ item['description'] }}{% endblock %}
+{% block og_description %}{{ item['excerpt'] }}{% endblock %}
 
 {% block content %}
 
@@ -16,7 +16,17 @@
     {% endif %}
 
     <h1>{{ item['title'] }}</h1>
-    <p class="portfolio-description">{{ item['description'] }}</p>
+    <div class="portfolio-body">
+      {% for paragraph in item['body'].split('\n\n') %}
+      <p>{{ paragraph }}</p>
+      {% endfor %}
+    </div>
+
+    {% if item['project_url'] %}
+    <p class="portfolio-link">
+      <a class="btn btn-primary btn-sm" href="{{ item['project_url'] }}" target="_blank" rel="noopener noreferrer">View Project &rarr;</a>
+    </p>
+    {% endif %}
 
     {% if is_authenticated %}
     <div class="card-actions">
