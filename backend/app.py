@@ -14,7 +14,7 @@ import os
 import re
 import secrets
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 
 import yt_dlp
@@ -54,18 +54,49 @@ MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 app.config["MAX_CONTENT_LENGTH"] = MAX_IMAGE_SIZE_BYTES
 
 # ---------------------------------------------------------------------------
-# SECRET_KEY signs Flask's session cookie. The only thing this app keeps in
-# the session is one-time flash messages ("Post published.", "Project
-# deleted.", etc. -- see flash() calls below), but Flask requires a secret
-# key to sign that cookie at all. Set a real SECRET_KEY environment variable
-# before deploying anywhere public -- the fallback below is fixed (so it
-# survives app restarts during local dev) and must NOT be relied on outside
-# your own machine, exactly like the ADMIN_USERNAME/ADMIN_PASSWORD fallback
-# just below.
+# SECRET_KEY signs Flask's session cookie. This app keeps two things in the
+# session: one-time flash messages ("Post published.", "Project deleted.",
+# etc. -- see flash() calls below) and the preview_mode flag (see
+# /admin/preview/*) -- but Flask requires a secret key to sign that cookie
+# at all. Set a real SECRET_KEY environment variable before deploying
+# anywhere public -- the fallback below is fixed (so it survives app
+# restarts during local dev) and must NOT be relied on outside your own
+# machine, exactly like the ADMIN_USERNAME/ADMIN_PASSWORD fallback just
+# below.
 # ---------------------------------------------------------------------------
 app.secret_key = os.environ.get(
     "SECRET_KEY", "local-dev-only-secret-key-9f2b6e4a1d7c8035-do-not-use-in-production"
 )
+
+
+# ---------------------------------------------------------------------------
+# Analytics: a page_views table that isn't part of init_db.py's normal
+# create-and-seed flow, because that script drops and recreates every table
+# from scratch -- fine for a fresh dev database, but running it against the
+# live production database would destroy every real post/project/video
+# that's been added since launch. This runs once at import time instead and
+# only ever adds the table if it's missing, so it's safe to deploy against
+# an existing database with real data in it.
+# ---------------------------------------------------------------------------
+def _ensure_page_views_table():
+    connection = get_db_connection()
+    connection.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS page_views (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            path TEXT NOT NULL,
+            endpoint TEXT NOT NULL,
+            visitor_id TEXT NOT NULL,
+            viewed_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_page_views_viewed_at ON page_views (viewed_at);
+        """
+    )
+    connection.commit()
+    connection.close()
+
+
+_ensure_page_views_table()
 
 
 def _has_allowed_image_extension(filename):
@@ -208,6 +239,54 @@ def require_auth(view):
         return view(*args, **kwargs)
 
     return wrapped
+
+
+# ---------------------------------------------------------------------------
+# Visitor analytics: counts page views per content page without tracking
+# anything identifying. No IP address or user agent is ever stored -- just
+# a random per-browser cookie (VISITOR_COOKIE_NAME) so repeat visits from
+# the same browser count as one visitor instead of one per page view. The
+# site owner's own browsing never gets counted: any request carrying valid
+# admin credentials is skipped outright, regardless of preview mode. That's
+# deliberately _has_admin_credentials() and not is_authenticated() -- the
+# point is to exclude the owner's own traffic, and browsing in preview mode
+# is still the owner's traffic, not a real visitor's.
+# ---------------------------------------------------------------------------
+TRACKED_ENDPOINTS = {"home", "portfolio", "blog_list", "blog_post", "videos", "video_detail"}
+VISITOR_COOKIE_NAME = "visitor_id"
+VISITOR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 2  # 2 years
+
+
+@app.after_request
+def _record_page_view(response):
+    if (
+        request.method != "GET"
+        or request.endpoint not in TRACKED_ENDPOINTS
+        or response.status_code >= 400
+        or _has_admin_credentials()
+    ):
+        return response
+
+    visitor_id = request.cookies.get(VISITOR_COOKIE_NAME)
+    if not visitor_id:
+        visitor_id = uuid.uuid4().hex
+        response.set_cookie(
+            VISITOR_COOKIE_NAME,
+            visitor_id,
+            max_age=VISITOR_COOKIE_MAX_AGE,
+            httponly=True,
+            samesite="Lax",
+        )
+
+    connection = get_db_connection()
+    connection.execute(
+        "INSERT INTO page_views (path, endpoint, visitor_id, viewed_at) VALUES (?, ?, ?, ?)",
+        (request.path, request.endpoint, visitor_id, datetime.now(timezone.utc).isoformat()),
+    )
+    connection.commit()
+    connection.close()
+    return response
+
 
 def get_all_tags():
     connection = get_db_connection()
@@ -867,6 +946,88 @@ def admin_preview_stop():
     session.pop("preview_mode", None)
     flash("Exited preview mode.")
     return _redirect_back()
+
+
+ANALYTICS_PAGE_LABELS = {
+    "home": "Home",
+    "portfolio": "Portfolio",
+    "blog_list": "Blog",
+    "blog_post": "Blog post",
+    "videos": "Videos",
+    "video_detail": "Video",
+}
+
+ANALYTICS_DAILY_CHART_DAYS = 14
+
+
+@app.route("/admin/analytics")
+@require_auth
+def analytics():
+    connection = get_db_connection()
+
+    total_views = connection.execute("SELECT COUNT(*) AS n FROM page_views").fetchone()["n"]
+    unique_visitors = connection.execute(
+        "SELECT COUNT(DISTINCT visitor_id) AS n FROM page_views"
+    ).fetchone()["n"]
+
+    now = datetime.now(timezone.utc)
+    views_last_7_days = connection.execute(
+        "SELECT COUNT(*) AS n FROM page_views WHERE viewed_at >= ?",
+        ((now - timedelta(days=7)).isoformat(),),
+    ).fetchone()["n"]
+    views_last_30_days = connection.execute(
+        "SELECT COUNT(*) AS n FROM page_views WHERE viewed_at >= ?",
+        ((now - timedelta(days=30)).isoformat(),),
+    ).fetchone()["n"]
+
+    top_pages = connection.execute(
+        """
+        SELECT path, endpoint, COUNT(*) AS views
+        FROM page_views
+        GROUP BY path, endpoint
+        ORDER BY views DESC, path ASC
+        LIMIT 10
+        """
+    ).fetchall()
+
+    # One grouped query for the whole chart window instead of one query per
+    # day -- viewed_at is an ISO timestamp, so its first 10 characters are
+    # always that visit's calendar day (YYYY-MM-DD) in UTC.
+    chart_start_day = (now - timedelta(days=ANALYTICS_DAILY_CHART_DAYS - 1)).date()
+    rows = connection.execute(
+        """
+        SELECT substr(viewed_at, 1, 10) AS day, COUNT(*) AS n
+        FROM page_views
+        WHERE substr(viewed_at, 1, 10) >= ?
+        GROUP BY day
+        """,
+        (chart_start_day.isoformat(),),
+    ).fetchall()
+    connection.close()
+
+    views_by_day = {row["day"]: row["n"] for row in rows}
+    daily_counts = []
+    for days_ago in range(ANALYTICS_DAILY_CHART_DAYS - 1, -1, -1):
+        day = (now - timedelta(days=days_ago)).date()
+        daily_counts.append(
+            {
+                "label": f"{day.strftime('%b')} {day.day}",
+                "count": views_by_day.get(day.isoformat(), 0),
+            }
+        )
+    max_daily_count = max((day["count"] for day in daily_counts), default=0)
+
+    return render_template(
+        "analytics.html",
+        total_views=total_views,
+        unique_visitors=unique_visitors,
+        views_last_7_days=views_last_7_days,
+        views_last_30_days=views_last_30_days,
+        top_pages=top_pages,
+        page_labels=ANALYTICS_PAGE_LABELS,
+        daily_counts=daily_counts,
+        max_daily_count=max_daily_count,
+    )
 
 
 @app.errorhandler(404)

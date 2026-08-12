@@ -300,6 +300,7 @@ SCHEMA_SCRIPT = """
     DROP TABLE IF EXISTS posts;
     DROP TABLE IF EXISTS portfolio_items;
     DROP TABLE IF EXISTS videos;
+    DROP TABLE IF EXISTS page_views;
 
     CREATE TABLE posts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -330,6 +331,16 @@ SCHEMA_SCRIPT = """
         color_end TEXT NOT NULL,
         video_url TEXT
     );
+
+    CREATE TABLE page_views (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        path TEXT NOT NULL,
+        endpoint TEXT NOT NULL,
+        visitor_id TEXT NOT NULL,
+        viewed_at TEXT NOT NULL
+    );
+
+    CREATE INDEX idx_page_views_viewed_at ON page_views (viewed_at);
     """
 
 

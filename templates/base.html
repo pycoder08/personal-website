@@ -31,6 +31,9 @@
           <a href="{{ url_for('portfolio') }}" class="{{ 'active' if request.endpoint == 'portfolio' else '' }}">Portfolio</a>
           <a href="{{ url_for('blog_list') }}" class="{{ 'active' if request.endpoint in ['blog_list', 'blog_post', 'blog_new'] else '' }}">Blog</a>
           <a href="{{ url_for('videos') }}" class="{{ 'active' if request.endpoint in ['videos', 'video_detail', 'video_new', 'video_edit'] else '' }}">Videos</a>
+          {% if is_authenticated %}
+          <a href="{{ url_for('analytics') }}" class="{{ 'active' if request.endpoint == 'analytics' else '' }}">Analytics</a>
+          {% endif %}
         </nav>
         {% if is_authenticated or previewing %}
         <a class="preview-toggle {{ 'is-on' if previewing }}"
