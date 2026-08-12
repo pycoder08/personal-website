@@ -252,7 +252,15 @@ def require_auth(view):
 # point is to exclude the owner's own traffic, and browsing in preview mode
 # is still the owner's traffic, not a real visitor's.
 # ---------------------------------------------------------------------------
-TRACKED_ENDPOINTS = {"home", "portfolio", "blog_list", "blog_post", "videos", "video_detail"}
+TRACKED_ENDPOINTS = {
+    "home",
+    "portfolio",
+    "portfolio_detail",
+    "blog_list",
+    "blog_post",
+    "videos",
+    "video_detail",
+}
 VISITOR_COOKIE_NAME = "visitor_id"
 VISITOR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 2  # 2 years
 
@@ -447,6 +455,18 @@ def portfolio_new():
         return redirect(url_for("portfolio"))
 
     return render_template("portfolio_form.html", error=None, form={}, item=None)
+
+
+@app.route("/portfolio/<int:item_id>")
+def portfolio_detail(item_id):
+    connection = get_db_connection()
+    item = connection.execute(
+        "SELECT * FROM portfolio_items WHERE id = ?", (item_id,)
+    ).fetchone()
+    connection.close()
+    if item is None:
+        abort(404)
+    return render_template("portfolio_detail.html", item=item)
 
 
 @app.route("/portfolio/<int:item_id>/edit", methods=["GET", "POST"])
@@ -951,6 +971,7 @@ def admin_preview_stop():
 ANALYTICS_PAGE_LABELS = {
     "home": "Home",
     "portfolio": "Portfolio",
+    "portfolio_detail": "Project",
     "blog_list": "Blog",
     "blog_post": "Blog post",
     "videos": "Videos",

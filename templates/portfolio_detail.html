@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}{{ item['title'] }} -- Muhammad Conn{% endblock %}
+{% block og_title %}{{ item['title'] }}{% endblock %}
+{% block og_description %}{{ item['description'] }}{% endblock %}
+
+{% block content %}
+
+  <article class="section portfolio-full">
+    <a class="back-link" href="{{ url_for('portfolio') }}">&larr; Back to Portfolio</a>
+
+    {% if item['image_filename'] %}
+    <img class="portfolio-full-image" src="{{ url_for('static', filename='images/portfolio/' + item['image_filename']) }}" alt="{{ item['title'] }} screenshot">
+    {% else %}
+    <div class="portfolio-full-thumb" style="background: linear-gradient(135deg, {{ item['color_start'] }}, {{ item['color_end'] }});">
+      <span class="thumb-icon">{{ item['icon'] }}</span>
+    </div>
+    {% endif %}
+
+    <h1>{{ item['title'] }}</h1>
+    <p class="portfolio-description">{{ item['description'] }}</p>
+
+    {% if is_authenticated %}
+    <div class="card-actions">
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('portfolio_edit', item_id=item['id']) }}">Edit</a>
+      <form class="inline-form" method="POST" action="{{ url_for('portfolio_delete', item_id=item['id']) }}" onsubmit="return confirm('Delete this project? This cannot be undone.');">
+        <button class="btn btn-danger btn-sm" type="submit">Delete</button>
+      </form>
+    </div>
+    {% endif %}
+  </article>
+
+{% endblock %}

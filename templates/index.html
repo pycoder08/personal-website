@@ -28,15 +28,17 @@
     <div class="portfolio-grid">
       {% for item in featured_items %}
       <article class="card portfolio-card">
-        {% if item['image_filename'] %}
-        <img class="thumb thumb-img" src="{{ url_for('static', filename='images/portfolio/' + item['image_filename']) }}" alt="{{ item['title'] }} screenshot">
-        {% else %}
-        <div class="thumb" style="background: linear-gradient(135deg, {{ item['color_start'] }}, {{ item['color_end'] }});">
-          <span class="thumb-icon">{{ item['icon'] }}</span>
-        </div>
-        {% endif %}
+        <a class="portfolio-thumb-link" href="{{ url_for('portfolio_detail', item_id=item['id']) }}">
+          {% if item['image_filename'] %}
+          <img class="thumb thumb-img" src="{{ url_for('static', filename='images/portfolio/' + item['image_filename']) }}" alt="{{ item['title'] }} screenshot">
+          {% else %}
+          <div class="thumb" style="background: linear-gradient(135deg, {{ item['color_start'] }}, {{ item['color_end'] }});">
+            <span class="thumb-icon">{{ item['icon'] }}</span>
+          </div>
+          {% endif %}
+        </a>
         <div class="card-body">
-          <h3>{{ item['title'] }}</h3>
+          <h3><a class="portfolio-title-link" href="{{ url_for('portfolio_detail', item_id=item['id']) }}">{{ item['title'] }}</a></h3>
           <p>{{ item['description'] }}</p>
         </div>
       </article>

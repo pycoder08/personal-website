@@ -79,6 +79,7 @@ READ_ROUTES_WITH_CONTROLS = [
     ("/blog", "/edit\""),
     ("/blog/1", "/blog/1/edit"),
     ("/portfolio", "/portfolio/1/edit"),
+    ("/portfolio/1", "/portfolio/1/edit"),
     ("/videos", "/videos/1/edit"),
     ("/videos/1", "/videos/1/edit"),
 ]

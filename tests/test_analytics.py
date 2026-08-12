@@ -33,11 +33,12 @@ def test_anonymous_page_view_is_recorded(client):
 def test_multiple_tracked_pages_are_all_recorded(client):
     client.get("/")
     client.get("/portfolio")
+    client.get("/portfolio/1")
     client.get("/blog")
     client.get("/blog/1")
     client.get("/videos")
     client.get("/videos/1")
-    assert _page_view_count() == 6
+    assert _page_view_count() == 7
 
 
 def test_admin_page_view_is_not_recorded(client, good_auth):

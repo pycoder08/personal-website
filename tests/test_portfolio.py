@@ -174,6 +174,32 @@ def test_oversized_image_upload_is_rejected_with_413(client, good_auth):
     assert b"too large" in response.data.lower()
 
 
+def test_detail_page_shows_title_and_description(client):
+    response = client.get("/portfolio/1")
+    assert response.status_code == 200
+    assert b"Personal Site Rebuild" in response.data
+    assert b"Flask backend, SQLite-backed blog" in response.data
+
+
+def test_detail_page_404s_for_missing_id(client):
+    assert client.get("/portfolio/9999").status_code == 404
+
+
+def test_detail_page_links_back_to_portfolio_grid(client):
+    response = client.get("/portfolio/1")
+    assert b'href="/portfolio"' in response.data
+
+
+def test_grid_card_links_to_detail_page(client):
+    response = client.get("/portfolio")
+    assert b'href="/portfolio/1"' in response.data
+
+
+def test_homepage_featured_card_links_to_detail_page(client):
+    response = client.get("/")
+    assert b'href="/portfolio/1"' in response.data
+
+
 def test_delete_item_with_uploaded_image_removes_file_from_disk(client, good_auth, upload_dir):
     form = dict(NEW_ITEM_FORM)
     form["image"] = (io.BytesIO(VALID_IMAGE_BYTES), "screenshot.png")

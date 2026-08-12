@@ -33,6 +33,16 @@ def test_favicon_and_og_tags_on_videos(client):
     assert b'property="og:title" content="Muhammad Conn"' in response.data
 
 
+def test_portfolio_detail_og_title_reflects_the_project(client):
+    response = client.get("/portfolio/1")
+    assert response.status_code == 200
+    assert b'rel="icon"' in response.data
+    assert (
+        b'property="og:title" content="Personal Site Rebuild"'
+        in response.data
+    )
+
+
 def test_blog_post_og_title_and_description_reflect_the_post(client):
     response = client.get("/blog/1")
     assert response.status_code == 200
