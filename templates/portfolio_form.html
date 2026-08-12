@@ -28,15 +28,6 @@
       <label for="description">Description</label>
       <textarea id="description" name="description" rows="3" placeholder="A short description of the project" required>{{ form.get('description', '') if form else '' }}</textarea>
 
-      <label for="color_start">Gradient Start Color</label>
-      <input type="text" id="color_start" name="color_start" placeholder="#6366f1" value="{{ form.get('color_start', '') if form else '' }}" required>
-
-      <label for="color_end">Gradient End Color</label>
-      <input type="text" id="color_end" name="color_end" placeholder="#8b5cf6" value="{{ form.get('color_end', '') if form else '' }}" required>
-
-      <label for="icon">Icon (emoji)</label>
-      <input type="text" id="icon" name="icon" placeholder="e.g. 🌐" value="{{ form.get('icon', '') if form else '' }}" required>
-
       <label for="image">Project Image (optional)</label>
       {% if item and item['image_filename'] %}
       <div class="current-image-preview">
@@ -44,7 +35,7 @@
       </div>
       <p class="form-hint">Currently using the image above. Upload a new file to replace it, or leave this blank to keep it.</p>
       {% else %}
-      <p class="form-hint">If you skip this, the gradient and icon above are used as the card thumbnail instead.</p>
+      <p class="form-hint">If you skip this, a standardized gradient (matching the site's own colors) is used as the card thumbnail instead.</p>
       {% endif %}
       <input type="file" id="image" name="image" accept=".png,.jpg,.jpeg,.gif,.webp,image/png,image/jpeg,image/gif,image/webp">
       <p class="form-hint">PNG, JPG, GIF, or WEBP -- 5MB max.</p>

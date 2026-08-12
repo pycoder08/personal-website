@@ -175,7 +175,6 @@ PORTFOLIO_ITEMS = [
         "blog, and a from-scratch CSS design system.",
         "#6366f1",
         "#8b5cf6",
-        "\U0001F310",
     ),
     (
         "SQL Study Tracker",
@@ -183,7 +182,6 @@ PORTFOLIO_ITEMS = [
         "and prints weekly summaries of time spent per topic.",
         "#0ea5e9",
         "#22d3ee",
-        "\U0001F4D3",
     ),
     (
         "Weather CLI",
@@ -191,7 +189,6 @@ PORTFOLIO_ITEMS = [
         "prints a clean, color-coded summary straight to the terminal.",
         "#f97316",
         "#facc15",
-        "☀️",
     ),
     (
         "Budget Tracker Automation",
@@ -199,7 +196,6 @@ PORTFOLIO_ITEMS = [
         "and flags months where spending jumps more than 15%.",
         "#10b981",
         "#34d399",
-        "\U0001F4B0",
     ),
     (
         "Chess Puzzle Solver",
@@ -207,7 +203,6 @@ PORTFOLIO_ITEMS = [
         "learn recursion and board-state representation.",
         "#1f2937",
         "#4b5563",
-        "♞",
     ),
     (
         "Flask Blog Engine",
@@ -215,7 +210,6 @@ PORTFOLIO_ITEMS = [
         "complete with a parameterized add-post form.",
         "#e11d48",
         "#fb7185",
-        "✍️",
     ),
     (
         "Desktop File Organizer",
@@ -223,7 +217,6 @@ PORTFOLIO_ITEMS = [
         "new files into folders by type and date.",
         "#7c3aed",
         "#a855f7",
-        "\U0001F5C2️",
     ),
     (
         "Habit Tracker Widget",
@@ -231,7 +224,6 @@ PORTFOLIO_ITEMS = [
         "stored in SQLite and a calendar-style heatmap view.",
         "#059669",
         "#10b981",
-        "✅",
     ),
     (
         "Retro Terminal Game",
@@ -239,7 +231,6 @@ PORTFOLIO_ITEMS = [
         "written to practice control flow and state management.",
         "#0f172a",
         "#334155",
-        "\U0001F47E",
     ),
 ]
 
@@ -318,7 +309,6 @@ SCHEMA_SCRIPT = """
         description TEXT NOT NULL,
         color_start TEXT NOT NULL,
         color_end TEXT NOT NULL,
-        icon TEXT NOT NULL,
         image_filename TEXT
     );
 
@@ -366,8 +356,8 @@ def seed_sample_data(connection):
     connection.executemany(
         """
         INSERT INTO portfolio_items
-            (title, description, color_start, color_end, icon)
-        VALUES (?, ?, ?, ?, ?)
+            (title, description, color_start, color_end)
+        VALUES (?, ?, ?, ?)
         """,
         PORTFOLIO_ITEMS,
     )

@@ -2,6 +2,7 @@
 
 import io
 
+import app as app_module
 import db as db_module
 
 VALID_IMAGE_BYTES = b"\x89PNG\r\n\x1a\n" + b"fake-but-good-enough-image-bytes" * 10
@@ -19,9 +20,6 @@ def _count_items():
 NEW_ITEM_FORM = {
     "title": "A Brand New Test Project",
     "description": "A project created by the test suite.",
-    "color_start": "#111111",
-    "color_end": "#222222",
-    "icon": "\U0001F9EA",
 }
 
 
@@ -52,9 +50,6 @@ def test_edit_item_updates_row(client, good_auth):
         data={
             "title": "An Edited Project Title",
             "description": "Edited description.",
-            "color_start": "#333333",
-            "color_end": "#444444",
-            "icon": "\U0001F680",
         },
         auth=good_auth,
     )
@@ -70,15 +65,47 @@ def test_edit_item_flashes_success_message(client, good_auth):
         data={
             "title": "An Edited Project Title",
             "description": "Edited description.",
-            "color_start": "#333333",
-            "color_end": "#444444",
-            "icon": "\U0001F680",
         },
         auth=good_auth,
         follow_redirects=True,
     )
     assert response.status_code == 200
     assert b"Project updated." in response.data
+
+
+def test_new_item_gets_the_standardized_gradient_colors(client, good_auth):
+    client.post("/portfolio/new", data=NEW_ITEM_FORM, auth=good_auth)
+
+    connection = db_module.get_db_connection()
+    row = connection.execute(
+        "SELECT * FROM portfolio_items WHERE title = ?",
+        ("A Brand New Test Project",),
+    ).fetchone()
+    connection.close()
+    assert row["color_start"] == app_module.DEFAULT_PORTFOLIO_COLOR_START
+    assert row["color_end"] == app_module.DEFAULT_PORTFOLIO_COLOR_END
+
+
+def test_editing_an_item_does_not_change_its_colors(client, good_auth):
+    connection = db_module.get_db_connection()
+    original = connection.execute(
+        "SELECT color_start, color_end FROM portfolio_items WHERE id = 1"
+    ).fetchone()
+    connection.close()
+
+    client.post(
+        "/portfolio/1/edit",
+        data={"title": "An Edited Project Title", "description": "Edited description."},
+        auth=good_auth,
+    )
+
+    connection = db_module.get_db_connection()
+    after = connection.execute(
+        "SELECT color_start, color_end FROM portfolio_items WHERE id = 1"
+    ).fetchone()
+    connection.close()
+    assert after["color_start"] == original["color_start"]
+    assert after["color_end"] == original["color_end"]
 
 
 def test_delete_item_removes_row(client, good_auth):
@@ -101,19 +128,27 @@ def test_new_item_missing_fields_shows_validation_error(client, good_auth):
 
     response = client.post(
         "/portfolio/new",
-        data={
-            "title": "",
-            "description": "desc",
-            "color_start": "#111111",
-            "color_end": "#222222",
-            "icon": "X",
-        },
+        data={"title": "", "description": "desc"},
         auth=good_auth,
     )
 
     assert response.status_code == 200
     assert b"Please fill out every field before saving." in response.data
     assert _count_items() == before
+
+
+def test_new_item_form_no_longer_asks_for_colors_or_an_icon(client, good_auth):
+    response = client.get("/portfolio/new", auth=good_auth)
+    assert response.status_code == 200
+    assert b'name="color_start"' not in response.data
+    assert b'name="color_end"' not in response.data
+    assert b'name="icon"' not in response.data
+
+
+def test_grid_placeholder_has_no_icon_glyph(client):
+    response = client.get("/portfolio")
+    assert response.status_code == 200
+    assert b"thumb-icon" not in response.data
 
 
 def test_valid_image_upload_is_accepted_and_renders_img_tag(client, good_auth):

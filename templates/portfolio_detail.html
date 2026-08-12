@@ -12,9 +12,7 @@
     {% if item['image_filename'] %}
     <img class="portfolio-full-image" src="{{ url_for('static', filename='images/portfolio/' + item['image_filename']) }}" alt="{{ item['title'] }} screenshot">
     {% else %}
-    <div class="portfolio-full-thumb" style="background: linear-gradient(135deg, {{ item['color_start'] }}, {{ item['color_end'] }});">
-      <span class="thumb-icon">{{ item['icon'] }}</span>
-    </div>
+    <div class="portfolio-full-thumb" style="background: linear-gradient(135deg, {{ item['color_start'] }}, {{ item['color_end'] }});"></div>
     {% endif %}
 
     <h1>{{ item['title'] }}</h1>

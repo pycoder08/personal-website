@@ -22,9 +22,7 @@
           {% if item['image_filename'] %}
           <img class="thumb thumb-img" src="{{ url_for('static', filename='images/portfolio/' + item['image_filename']) }}" alt="{{ item['title'] }} screenshot">
           {% else %}
-          <div class="thumb" style="background: linear-gradient(135deg, {{ item['color_start'] }}, {{ item['color_end'] }});">
-            <span class="thumb-icon">{{ item['icon'] }}</span>
-          </div>
+          <div class="thumb" style="background: linear-gradient(135deg, {{ item['color_start'] }}, {{ item['color_end'] }});"></div>
           {% endif %}
         </a>
         <div class="card-body">

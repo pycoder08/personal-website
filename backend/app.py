@@ -99,6 +99,45 @@ def _ensure_page_views_table():
 _ensure_page_views_table()
 
 
+# ---------------------------------------------------------------------------
+# Portfolio items originally required a manually-typed emoji `icon` for
+# their gradient-placeholder fallback. Now that every new project gets the
+# same standardized gradient (see DEFAULT_PORTFOLIO_COLOR_START/END above)
+# instead, a plain gradient with no icon renders fine, so that column is no
+# longer needed. SQLite's ALTER TABLE can't drop a column on every version
+# still in the wild, so this rebuilds the table without it instead --
+# idempotent (a no-op once already migrated) and safe to run against the
+# live database, which currently has zero portfolio rows anyway.
+# ---------------------------------------------------------------------------
+def _ensure_portfolio_schema():
+    connection = get_db_connection()
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(portfolio_items)")}
+    if "icon" in columns:
+        connection.executescript(
+            """
+            CREATE TABLE portfolio_items_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                description TEXT NOT NULL,
+                color_start TEXT NOT NULL,
+                color_end TEXT NOT NULL,
+                image_filename TEXT
+            );
+            INSERT INTO portfolio_items_new
+                (id, title, description, color_start, color_end, image_filename)
+                SELECT id, title, description, color_start, color_end, image_filename
+                FROM portfolio_items;
+            DROP TABLE portfolio_items;
+            ALTER TABLE portfolio_items_new RENAME TO portfolio_items;
+            """
+        )
+        connection.commit()
+    connection.close()
+
+
+_ensure_portfolio_schema()
+
+
 def _has_allowed_image_extension(filename):
     """Real allowlist check against the actual file extension -- never trust
     a client-supplied Content-Type/MIME header for this."""
@@ -127,11 +166,14 @@ def delete_portfolio_image(filename):
 
 
 # ---------------------------------------------------------------------------
-# Video placeholder thumbnails: rather than asking for a gradient every
-# time, every new video gets the same standardized gradient (matching the
-# site's own --primary/--accent brand colors). Editing a video never
-# touches its stored colors, so this only affects newly-created videos.
+# Placeholder thumbnails (portfolio + video): rather than asking for a
+# gradient every time, every new project/video gets the same standardized
+# gradient (matching the site's own --primary/--accent brand colors).
+# Editing never touches the stored colors, so this only affects
+# newly-created rows.
 # ---------------------------------------------------------------------------
+DEFAULT_PORTFOLIO_COLOR_START = "#0d9488"
+DEFAULT_PORTFOLIO_COLOR_END = "#ffbb54"
 DEFAULT_VIDEO_COLOR_START = "#0d9488"
 DEFAULT_VIDEO_COLOR_END = "#ffbb54"
 
@@ -413,14 +455,11 @@ def portfolio_new():
     if request.method == "POST":
         title = request.form.get("title", "").strip()
         description = request.form.get("description", "").strip()
-        color_start = request.form.get("color_start", "").strip()
-        color_end = request.form.get("color_end", "").strip()
-        icon = request.form.get("icon", "").strip()
         image_file = request.files.get("image")
         has_upload = image_file is not None and image_file.filename.strip() != ""
 
         error = None
-        if not title or not description or not color_start or not color_end or not icon:
+        if not title or not description:
             error = "Please fill out every field before saving."
         elif has_upload and not _has_allowed_image_extension(image_file.filename):
             error = (
@@ -440,10 +479,16 @@ def portfolio_new():
             connection.execute(
                 """
                 INSERT INTO portfolio_items
-                    (title, description, color_start, color_end, icon, image_filename)
-                VALUES (?, ?, ?, ?, ?, ?)
+                    (title, description, color_start, color_end, image_filename)
+                VALUES (?, ?, ?, ?, ?)
                 """,
-                (title, description, color_start, color_end, icon, image_filename),
+                (
+                    title,
+                    description,
+                    DEFAULT_PORTFOLIO_COLOR_START,
+                    DEFAULT_PORTFOLIO_COLOR_END,
+                    image_filename,
+                ),
             )
             connection.commit()
             connection.close()
@@ -483,14 +528,11 @@ def portfolio_edit(item_id):
     if request.method == "POST":
         title = request.form.get("title", "").strip()
         description = request.form.get("description", "").strip()
-        color_start = request.form.get("color_start", "").strip()
-        color_end = request.form.get("color_end", "").strip()
-        icon = request.form.get("icon", "").strip()
         image_file = request.files.get("image")
         has_upload = image_file is not None and image_file.filename.strip() != ""
 
         error = None
-        if not title or not description or not color_start or not color_end or not icon:
+        if not title or not description:
             error = "Please fill out every field before saving."
         elif has_upload and not _has_allowed_image_extension(image_file.filename):
             error = (
@@ -510,13 +552,16 @@ def portfolio_edit(item_id):
             image_filename = save_portfolio_image(image_file)
 
         try:
+            # Colors are intentionally left untouched here -- new projects
+            # get a standardized gradient (see portfolio_new), but editing
+            # never changes a project's existing colors.
             connection.execute(
                 """
                 UPDATE portfolio_items
-                SET title = ?, description = ?, color_start = ?, color_end = ?, icon = ?, image_filename = ?
+                SET title = ?, description = ?, image_filename = ?
                 WHERE id = ?
                 """,
-                (title, description, color_start, color_end, icon, image_filename, item_id),
+                (title, description, image_filename, item_id),
             )
             connection.commit()
             connection.close()
@@ -536,9 +581,6 @@ def portfolio_edit(item_id):
     form = {
         "title": item["title"],
         "description": item["description"],
-        "color_start": item["color_start"],
-        "color_end": item["color_end"],
-        "icon": item["icon"],
     }
     return render_template("portfolio_form.html", error=None, form=form, item=item)
 

@@ -873,15 +873,8 @@ code {
 .portfolio-full-thumb {
   height: 320px;
   border-radius: var(--radius-lg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   box-shadow: var(--shadow);
   margin-bottom: 1.75rem;
-}
-
-.portfolio-full-thumb .thumb-icon {
-  font-size: 4rem;
 }
 
 .portfolio-full h1 {
