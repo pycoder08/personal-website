@@ -486,8 +486,21 @@ code {
 }
 
 .portfolio-thumb-link {
+  position: relative;
   display: block;
   text-decoration: none;
+}
+
+.pinned-badge {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.6rem;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
 }
 
 .portfolio-title-link {

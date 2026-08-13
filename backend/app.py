@@ -172,6 +172,35 @@ def _ensure_portfolio_schema():
 _ensure_portfolio_schema()
 
 
+# ---------------------------------------------------------------------------
+# Pinning: lets the site owner pin specific projects to the top of the
+# /portfolio grid and into the homepage's Featured Work section, instead of
+# those always just being whichever projects happen to have the lowest ids.
+# A plain ALTER TABLE ADD COLUMN suffices here (unlike the rebuilds above)
+# since SQLite has always supported adding a column, just not dropping or
+# renaming one on every version still in the wild.
+# ---------------------------------------------------------------------------
+def _ensure_portfolio_pinned_column():
+    connection = get_db_connection()
+    table_exists = (
+        connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'portfolio_items'"
+        ).fetchone()
+        is not None
+    )
+    if table_exists:
+        columns = {row["name"] for row in connection.execute("PRAGMA table_info(portfolio_items)")}
+        if "pinned" not in columns:
+            connection.execute(
+                "ALTER TABLE portfolio_items ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0"
+            )
+            connection.commit()
+    connection.close()
+
+
+_ensure_portfolio_pinned_column()
+
+
 def _has_allowed_image_extension(filename):
     """Real allowlist check against the actual file extension -- never trust
     a client-supplied Content-Type/MIME header for this."""
@@ -494,7 +523,7 @@ def home():
         "SELECT * FROM posts ORDER BY date_iso DESC LIMIT 3"
     ).fetchall()
     featured_items = connection.execute(
-        "SELECT * FROM portfolio_items ORDER BY id LIMIT 3"
+        "SELECT * FROM portfolio_items ORDER BY pinned DESC, id ASC LIMIT 3"
     ).fetchall()
     connection.close()
     return render_template(
@@ -506,7 +535,7 @@ def home():
 def portfolio():
     connection = get_db_connection()
     items = connection.execute(
-        "SELECT * FROM portfolio_items ORDER BY id"
+        "SELECT * FROM portfolio_items ORDER BY pinned DESC, id ASC"
     ).fetchall()
     connection.close()
     return render_template(
@@ -674,6 +703,30 @@ def portfolio_delete(item_id):
     delete_portfolio_image(item["image_filename"])
     flash("Project deleted.")
     return redirect(url_for("portfolio"))
+
+
+@app.route("/portfolio/<int:item_id>/pin", methods=["POST"])
+@require_auth
+def portfolio_toggle_pin(item_id):
+    """Pinned projects sort first on both /portfolio and the homepage's
+    Featured Work section (see the ORDER BY pinned DESC, id ASC in the
+    portfolio() and home() routes) -- one flag drives both places rather
+    than needing separate controls for each."""
+    connection = get_db_connection()
+    item = connection.execute(
+        "SELECT pinned FROM portfolio_items WHERE id = ?", (item_id,)
+    ).fetchone()
+    if item is None:
+        connection.close()
+        abort(404)
+    newly_pinned = not item["pinned"]
+    connection.execute(
+        "UPDATE portfolio_items SET pinned = ? WHERE id = ?", (int(newly_pinned), item_id)
+    )
+    connection.commit()
+    connection.close()
+    flash("Project pinned to the top." if newly_pinned else "Project unpinned.")
+    return _redirect_back()
 
 
 POSTS_PER_PAGE = 5

@@ -29,6 +29,9 @@
     {% if is_authenticated %}
     <div class="card-actions">
       <a class="btn btn-ghost btn-sm" href="{{ url_for('portfolio_edit', item_id=item['id']) }}">Edit</a>
+      <form class="inline-form" method="POST" action="{{ url_for('portfolio_toggle_pin', item_id=item['id']) }}">
+        <button class="btn btn-ghost btn-sm" type="submit">{{ 'Unpin' if item['pinned'] else 'Pin to Top' }}</button>
+      </form>
       <form class="inline-form" method="POST" action="{{ url_for('portfolio_delete', item_id=item['id']) }}" onsubmit="return confirm('Delete this project? This cannot be undone.');">
         <button class="btn btn-danger btn-sm" type="submit">Delete</button>
       </form>

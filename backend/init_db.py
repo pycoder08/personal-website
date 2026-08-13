@@ -354,7 +354,8 @@ SCHEMA_SCRIPT = """
         color_start TEXT NOT NULL,
         color_end TEXT NOT NULL,
         image_filename TEXT,
-        project_url TEXT
+        project_url TEXT,
+        pinned INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE videos (

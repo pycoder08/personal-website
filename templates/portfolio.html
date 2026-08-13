@@ -24,6 +24,9 @@
           {% else %}
           <div class="thumb" style="background: linear-gradient(135deg, {{ item['color_start'] }}, {{ item['color_end'] }});"></div>
           {% endif %}
+          {% if item['pinned'] %}
+          <span class="pinned-badge">&#128204; Pinned</span>
+          {% endif %}
         </a>
         <div class="card-body">
           <h3><a class="portfolio-title-link" href="{{ url_for('portfolio_detail', item_id=item['id']) }}">{{ item['title'] }}</a></h3>
@@ -31,6 +34,9 @@
           {% if is_authenticated %}
           <div class="card-actions">
             <a class="btn btn-ghost btn-sm" href="{{ url_for('portfolio_edit', item_id=item['id']) }}">Edit</a>
+            <form class="inline-form" method="POST" action="{{ url_for('portfolio_toggle_pin', item_id=item['id']) }}">
+              <button class="btn btn-ghost btn-sm" type="submit">{{ 'Unpin' if item['pinned'] else 'Pin to Top' }}</button>
+            </form>
             <form class="inline-form" method="POST" action="{{ url_for('portfolio_delete', item_id=item['id']) }}" onsubmit="return confirm('Delete this project? This cannot be undone.');">
               <button class="btn btn-danger btn-sm" type="submit">Delete</button>
             </form>
