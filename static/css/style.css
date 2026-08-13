@@ -1151,6 +1151,39 @@ code {
 }
 
 /* =========================================================
+   Markdown formatting toolbar (blog + portfolio body fields)
+   ========================================================= */
+.md-toolbar {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.4rem;
+}
+
+.md-toolbar button {
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.md-toolbar button:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+}
+
+.md-toolbar button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* =========================================================
    Image upload utility (/admin/upload-image)
    ========================================================= */
 .upload-result {

@@ -146,3 +146,95 @@ def test_upload_image_page_not_counted_in_visitor_analytics(client, good_auth):
     count = connection.execute("SELECT COUNT(*) AS n FROM page_views").fetchone()["n"]
     connection.close()
     assert count == 0
+
+
+# ---------------------------------------------------------------------------
+# The formatting toolbar (static/js/markdown-toolbar.js) itself runs in the
+# browser and isn't exercised by these server-side tests -- what's tested
+# here is everything the server is responsible for: the toolbar markup
+# actually being on the page, the JSON upload path it calls via fetch(),
+# and that it's wired up with the same validation as the plain-HTML form.
+# ---------------------------------------------------------------------------
+def test_upload_image_json_response_on_success(client, good_auth, content_upload_dir):
+    response = client.post(
+        "/admin/upload-image",
+        data={"image": (io.BytesIO(VALID_IMAGE_BYTES), "photo.png")},
+        auth=good_auth,
+        headers={"Accept": "application/json"},
+    )
+    assert response.status_code == 200
+    assert response.content_type == "application/json"
+    body = response.get_json()
+    assert body["url"].startswith("/static/images/uploads/")
+    assert body["url"].endswith(".png")
+
+
+def test_upload_image_json_response_on_missing_file(client, good_auth):
+    response = client.post(
+        "/admin/upload-image",
+        data={},
+        auth=good_auth,
+        headers={"Accept": "application/json"},
+    )
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Choose an image file first."
+
+
+def test_upload_image_json_response_on_bad_extension(client, good_auth, content_upload_dir):
+    response = client.post(
+        "/admin/upload-image",
+        data={"image": (io.BytesIO(b"not an image"), "notes.txt")},
+        auth=good_auth,
+        headers={"Accept": "application/json"},
+    )
+    assert response.status_code == 400
+    assert "isn't supported" in response.get_json()["error"]
+    assert list(content_upload_dir.glob("*")) == []
+
+
+def test_upload_image_json_endpoint_requires_auth(client, bad_auth):
+    response = client.post(
+        "/admin/upload-image",
+        data={"image": (io.BytesIO(VALID_IMAGE_BYTES), "photo.png")},
+        headers={"Accept": "application/json"},
+    )
+    assert response.status_code == 401
+
+    response = client.post(
+        "/admin/upload-image",
+        data={"image": (io.BytesIO(VALID_IMAGE_BYTES), "photo.png")},
+        auth=bad_auth,
+        headers={"Accept": "application/json"},
+    )
+    assert response.status_code == 401
+
+
+def test_toolbar_present_on_blog_form_targeting_the_body_field(client, good_auth):
+    response = client.get("/blog/new", auth=good_auth)
+    assert b'class="md-toolbar" data-target="body"' in response.data
+    assert b'data-md="bold"' in response.data
+    assert b'data-md="image"' in response.data
+
+
+def test_toolbar_present_on_portfolio_form_targeting_the_body_field(client, good_auth):
+    response = client.get("/portfolio/new", auth=good_auth)
+    assert b'class="md-toolbar" data-target="body"' in response.data
+    assert b'data-md="bold"' in response.data
+    assert b'data-md="image"' in response.data
+
+
+def test_toolbar_script_is_included_and_loads_successfully(client, good_auth):
+    response = client.get("/blog/new", auth=good_auth)
+    assert b"js/markdown-toolbar.js" in response.data
+
+    script_response = client.get("/static/js/markdown-toolbar.js")
+    assert script_response.status_code == 200
+    assert b"md-toolbar" in script_response.data
+
+
+def test_toolbar_not_present_on_public_read_only_pages(client):
+    """The toolbar (and its script) is a write-form-only affordance --
+    it has no reason to load on pages a visitor actually reads."""
+    response = client.get("/blog")
+    assert b"md-toolbar" not in response.data
+    assert b"markdown-toolbar.js" not in response.data

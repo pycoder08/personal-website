@@ -444,10 +444,11 @@ def format_display_date(date_iso):
 
 # ---------------------------------------------------------------------------
 # Cache-busting for static assets whose URL never changes on its own (CSS,
-# the site logo): browsers can and do keep serving a stale cached copy
-# indefinitely after an edit. Appending ?v=<file mtime> to the URL (see
-# base.html) means the URL itself changes whenever the file's contents
-# change, forcing a fresh fetch without needing a manual version bump.
+# the site logo, the Markdown toolbar script): browsers can and do keep
+# serving a stale cached copy indefinitely after an edit. Appending
+# ?v=<file mtime> to the URL (see base.html) means the URL itself changes
+# whenever the file's contents change, forcing a fresh fetch without
+# needing a manual version bump.
 # ---------------------------------------------------------------------------
 def _file_mtime_version(*relative_path_parts):
     path = os.path.join(PROJECT_ROOT, "static", *relative_path_parts)
@@ -462,6 +463,7 @@ def inject_asset_version():
     return {
         "asset_version": _file_mtime_version("css", "style.css"),
         "logo_version": _file_mtime_version("images", "FlameMeem1.png"),
+        "js_version": _file_mtime_version("js", "markdown-toolbar.js"),
     }
 
 
@@ -1088,7 +1090,15 @@ def admin_upload_image():
     upload an image, get back a URL to paste into a Markdown body as
     `![](url)`. Exists because inline images in blog/portfolio write-ups
     need a real URL to point at, and this is the only way to get one for
-    anything beyond a portfolio item's single thumbnail."""
+    anything beyond a portfolio item's single thumbnail.
+
+    Also the endpoint the toolbar's Image button (see
+    static/js/markdown-toolbar.js) uploads to directly via fetch(), rather
+    than a separate route -- same validation, same save_content_image()
+    call, just a JSON response instead of a rendered page when the request
+    asks for one via an Accept header, so one code path serves both the
+    JS-driven toolbar and the plain-HTML fallback page."""
+    wants_json = "application/json" in request.headers.get("Accept", "")
     uploaded_url = None
     error = None
 
@@ -1105,6 +1115,11 @@ def admin_upload_image():
             )
         else:
             uploaded_url = save_content_image(image_file)
+
+        if wants_json:
+            if error:
+                return {"error": error}, 400
+            return {"url": uploaded_url}
 
     return render_template("admin_upload_image.html", uploaded_url=uploaded_url, error=error)
 
