@@ -31,6 +31,16 @@ NEW_PROJECT_FORM = {
     ),
 }
 
+NEW_VIDEO_FORM = {
+    "title": "A Markdown Test Video",
+    "description": (
+        "# A Heading\n\n"
+        "Some **bold** text and a [link](https://example.com).\n\n"
+        "- one\n- two\n- three"
+    ),
+    "duration": "4:20",
+}
+
 
 def _new_post_id():
     connection = db_module.get_db_connection()
@@ -88,6 +98,50 @@ def test_portfolio_body_renders_markdown_to_real_html(client, good_auth):
     assert b"<strong>bold</strong>" in response.data
     assert b'<a href="https://example.com">link</a>' in response.data
     assert b"<li>one</li>" in response.data
+
+
+def _new_video_id():
+    connection = db_module.get_db_connection()
+    row = connection.execute(
+        "SELECT id FROM videos WHERE title = ?", ("A Markdown Test Video",)
+    ).fetchone()
+    connection.close()
+    return row["id"]
+
+
+def test_video_description_renders_markdown_to_real_html_on_detail_page(client, good_auth):
+    client.post("/videos/new", data=NEW_VIDEO_FORM, auth=good_auth)
+    response = client.get(f"/videos/{_new_video_id()}")
+    assert b"<h1>A Heading</h1>" in response.data
+    assert b"<strong>bold</strong>" in response.data
+    assert b'<a href="https://example.com">link</a>' in response.data
+    assert b"<li>one</li>" in response.data
+
+
+def test_video_description_renders_markdown_on_the_grid_too(client, good_auth):
+    client.post("/videos/new", data=NEW_VIDEO_FORM, auth=good_auth)
+    response = client.get("/videos")
+    assert b"<strong>bold</strong>" in response.data
+
+
+def test_video_description_single_line_breaks_render_as_br(client, good_auth):
+    form = dict(NEW_VIDEO_FORM)
+    form["description"] = "Line one.\nLine two.\nLine three."
+    client.post("/videos/new", data=form, auth=good_auth)
+
+    response = client.get(f"/videos/{_new_video_id()}")
+    assert b"Line one.<br" in response.data
+    assert b"Line two.<br" in response.data
+
+
+def test_video_og_description_meta_tag_stays_plain_text_not_html(client, good_auth):
+    """The og:description meta tag's content attribute must never contain
+    rendered Markdown HTML -- only the raw text, same as blog/portfolio's
+    excerpt field is used there instead of the markdown-rendered body."""
+    client.post("/videos/new", data=NEW_VIDEO_FORM, auth=good_auth)
+    response = client.get(f"/videos/{_new_video_id()}")
+    assert b'property="og:description" content="# A Heading' in response.data
+    assert b"<strong>" not in response.data.split(b"</head>")[0]
 
 
 def test_upload_image_page_requires_auth(client, bad_auth):

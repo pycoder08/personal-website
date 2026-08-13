@@ -684,9 +684,10 @@ code {
   letter-spacing: -0.01em;
 }
 
-/* Markdown-rendered body content (blog posts + portfolio write-ups) */
+/* Markdown-rendered body content (blog posts, portfolio write-ups, video descriptions) */
 .post-body p,
-.portfolio-body p {
+.portfolio-body p,
+.video-description p {
   margin-bottom: 1.15rem;
   max-width: 68ch;
   color: var(--text);
@@ -694,28 +695,34 @@ code {
 
 .post-body h1,
 .portfolio-body h1,
+.video-description h1,
 .post-body h2,
-.portfolio-body h2 {
+.portfolio-body h2,
+.video-description h2 {
   font-size: 1.5rem;
   margin: 1.75rem 0 0.85rem;
 }
 
 .post-body h3,
-.portfolio-body h3 {
+.portfolio-body h3,
+.video-description h3 {
   font-size: 1.25rem;
   margin: 1.5rem 0 0.75rem;
 }
 
 .post-body h4,
-.portfolio-body h4 {
+.portfolio-body h4,
+.video-description h4 {
   font-size: 1.05rem;
   margin: 1.25rem 0 0.6rem;
 }
 
 .post-body ul,
 .portfolio-body ul,
+.video-description ul,
 .post-body ol,
-.portfolio-body ol {
+.portfolio-body ol,
+.video-description ol {
   list-style: revert;
   margin: 0 0 1.15rem 1.4rem;
   max-width: 68ch;
@@ -723,12 +730,14 @@ code {
 }
 
 .post-body li,
-.portfolio-body li {
+.portfolio-body li,
+.video-description li {
   margin-bottom: 0.35rem;
 }
 
 .post-body blockquote,
-.portfolio-body blockquote {
+.portfolio-body blockquote,
+.video-description blockquote {
   border-left: 3px solid var(--primary);
   padding-left: 1rem;
   margin: 0 0 1.15rem;
@@ -737,7 +746,8 @@ code {
 }
 
 .post-body pre,
-.portfolio-body pre {
+.portfolio-body pre,
+.video-description pre {
   background: var(--primary-light);
   border-radius: var(--radius-sm);
   padding: 1rem 1.1rem;
@@ -746,7 +756,8 @@ code {
 }
 
 .post-body pre code,
-.portfolio-body pre code {
+.portfolio-body pre code,
+.video-description pre code {
   background: none;
   padding: 0;
   color: var(--text);
@@ -754,24 +765,28 @@ code {
 }
 
 .post-body a,
-.portfolio-body a {
+.portfolio-body a,
+.video-description a {
   color: var(--primary);
   text-decoration: underline;
 }
 
 .post-body a:hover,
-.portfolio-body a:hover {
+.portfolio-body a:hover,
+.video-description a:hover {
   color: var(--primary-dark);
 }
 
 .post-body img,
-.portfolio-body img {
+.portfolio-body img,
+.video-description img {
   border-radius: var(--radius-sm);
   margin-bottom: 1.15rem;
 }
 
 .post-body hr,
-.portfolio-body hr {
+.portfolio-body hr,
+.video-description hr {
   border: none;
   border-top: 1px solid var(--border);
   margin: 1.75rem 0;
@@ -942,11 +957,6 @@ code {
 .video-full h1 {
   font-size: 1.9rem;
   margin-bottom: 0.75rem;
-}
-
-.video-description {
-  color: var(--muted);
-  max-width: 60ch;
 }
 
 .video-link {

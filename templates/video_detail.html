@@ -28,7 +28,7 @@
     {% endif %}
 
     <h1>{{ video['title'] }}</h1>
-    <p class="video-description">{{ video['description'] }}</p>
+    <div class="video-description">{{ video['description'] | markdown }}</div>
 
     {% if video['video_url'] and not yt_id %}
     <p class="video-link">

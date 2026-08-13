@@ -25,7 +25,8 @@
       <input type="text" id="title" name="title" placeholder="Video title" value="{{ form.get('title', '') if form else '' }}" required>
 
       <label for="description">Description</label>
-      <textarea id="description" name="description" rows="3" placeholder="A short description of the video" required>{{ form.get('description', '') if form else '' }}</textarea>
+      <textarea id="description" name="description" rows="3" placeholder="A description of the video. Written in Markdown -- headers, **bold**, links, lists, and line breaks all work." required>{{ form.get('description', '') if form else '' }}</textarea>
+      <p class="form-hint">Written in Markdown, same as blog posts and portfolio write-ups.</p>
 
       <label for="video_url">Video Link (optional)</label>
       <input type="url" id="video_url" name="video_url" placeholder="https://www.youtube.com/watch?v=..." value="{{ form.get('video_url', '') if form else '' }}">
