@@ -33,7 +33,8 @@ NEW_PROJECT_FORM = {
 
 NEW_VIDEO_FORM = {
     "title": "A Markdown Test Video",
-    "description": (
+    "excerpt": "A short, plain-text summary shown on the video grid.",
+    "body": (
         "# A Heading\n\n"
         "Some **bold** text and a [link](https://example.com).\n\n"
         "- one\n- two\n- three"
@@ -109,7 +110,7 @@ def _new_video_id():
     return row["id"]
 
 
-def test_video_description_renders_markdown_to_real_html_on_detail_page(client, good_auth):
+def test_video_body_renders_markdown_to_real_html_on_detail_page(client, good_auth):
     client.post("/videos/new", data=NEW_VIDEO_FORM, auth=good_auth)
     response = client.get(f"/videos/{_new_video_id()}")
     assert b"<h1>A Heading</h1>" in response.data
@@ -118,15 +119,20 @@ def test_video_description_renders_markdown_to_real_html_on_detail_page(client, 
     assert b"<li>one</li>" in response.data
 
 
-def test_video_description_renders_markdown_on_the_grid_too(client, good_auth):
+def test_video_grid_card_shows_plain_excerpt_not_the_full_markdown_body(client, good_auth):
+    """The grid card teaser is the short, plain excerpt -- not the full
+    Markdown body. Rendering the whole body there was the original bug:
+    a long write-up would blow the card up to fit all of it."""
     client.post("/videos/new", data=NEW_VIDEO_FORM, auth=good_auth)
     response = client.get("/videos")
-    assert b"<strong>bold</strong>" in response.data
+    assert b"A short, plain-text summary shown on the video grid." in response.data
+    assert b"<strong>bold</strong>" not in response.data
+    assert b"<h1>A Heading</h1>" not in response.data
 
 
-def test_video_description_single_line_breaks_render_as_br(client, good_auth):
+def test_video_body_single_line_breaks_render_as_br(client, good_auth):
     form = dict(NEW_VIDEO_FORM)
-    form["description"] = "Line one.\nLine two.\nLine three."
+    form["body"] = "Line one.\nLine two.\nLine three."
     client.post("/videos/new", data=form, auth=good_auth)
 
     response = client.get(f"/videos/{_new_video_id()}")
@@ -134,13 +140,18 @@ def test_video_description_single_line_breaks_render_as_br(client, good_auth):
     assert b"Line two.<br" in response.data
 
 
-def test_video_og_description_meta_tag_stays_plain_text_not_html(client, good_auth):
+def test_video_og_description_meta_tag_uses_the_plain_excerpt_not_the_markdown_body(
+    client, good_auth
+):
     """The og:description meta tag's content attribute must never contain
-    rendered Markdown HTML -- only the raw text, same as blog/portfolio's
-    excerpt field is used there instead of the markdown-rendered body."""
+    rendered Markdown HTML -- it uses the plain excerpt, same as
+    blog/portfolio use their excerpt there instead of the rendered body."""
     client.post("/videos/new", data=NEW_VIDEO_FORM, auth=good_auth)
     response = client.get(f"/videos/{_new_video_id()}")
-    assert b'property="og:description" content="# A Heading' in response.data
+    assert (
+        b'property="og:description" content="A short, plain-text summary shown on the video grid."'
+        in response.data
+    )
     assert b"<strong>" not in response.data.split(b"</head>")[0]
 
 

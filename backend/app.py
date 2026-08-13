@@ -201,6 +201,57 @@ def _ensure_portfolio_pinned_column():
 _ensure_portfolio_pinned_column()
 
 
+# ---------------------------------------------------------------------------
+# Videos originally had one `description` column shown in full, verbatim,
+# in both the grid card teaser and the detail page -- fine for a one-line
+# description, but a real problem once someone writes an actual multi-
+# paragraph write-up: the grid card grows to fit the entire thing instead
+# of staying a short teaser. Splits it into `excerpt` (short, grid card)
+# and `body` (full write-up, Markdown-rendered, detail page only) -- same
+# shape `posts` and `portfolio_items` already have, for the same reason.
+# Existing rows get their old description copied into both columns as a
+# starting point (nothing vanishes), same rebuild-the-table approach as
+# the portfolio excerpt/body migration above, since SQLite can't split one
+# column's data into two via ALTER TABLE.
+# ---------------------------------------------------------------------------
+def _ensure_video_schema():
+    connection = get_db_connection()
+    table_exists = (
+        connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'videos'"
+        ).fetchone()
+        is not None
+    )
+    if table_exists:
+        columns = {row["name"] for row in connection.execute("PRAGMA table_info(videos)")}
+        if "excerpt" not in columns:
+            connection.executescript(
+                """
+                CREATE TABLE videos_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    excerpt TEXT NOT NULL,
+                    body TEXT NOT NULL,
+                    duration TEXT NOT NULL,
+                    color_start TEXT NOT NULL,
+                    color_end TEXT NOT NULL,
+                    video_url TEXT
+                );
+                INSERT INTO videos_new
+                    (id, title, excerpt, body, duration, color_start, color_end, video_url)
+                    SELECT id, title, description, description, duration, color_start, color_end, video_url
+                    FROM videos;
+                DROP TABLE videos;
+                ALTER TABLE videos_new RENAME TO videos;
+                """
+            )
+            connection.commit()
+    connection.close()
+
+
+_ensure_video_schema()
+
+
 def _has_allowed_image_extension(filename):
     """Real allowlist check against the actual file extension -- never trust
     a client-supplied Content-Type/MIME header for this."""
@@ -959,7 +1010,8 @@ def videos():
 def video_new():
     if request.method == "POST":
         title = request.form.get("title", "").strip()
-        description = request.form.get("description", "").strip()
+        excerpt = request.form.get("excerpt", "").strip()
+        body = request.form.get("body", "").strip()
         manual_duration = request.form.get("duration", "").strip()
         video_url = request.form.get("video_url", "").strip() or None
 
@@ -972,7 +1024,7 @@ def video_new():
                 detected = True
 
         error = None
-        if not title or not description:
+        if not title or not excerpt or not body:
             error = "Please fill out every field before saving."
         elif not duration:
             error = (
@@ -988,10 +1040,18 @@ def video_new():
         connection = get_db_connection()
         connection.execute(
             """
-            INSERT INTO videos (title, description, duration, color_start, color_end, video_url)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO videos (title, excerpt, body, duration, color_start, color_end, video_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (title, description, duration, DEFAULT_VIDEO_COLOR_START, DEFAULT_VIDEO_COLOR_END, video_url),
+            (
+                title,
+                excerpt,
+                body,
+                duration,
+                DEFAULT_VIDEO_COLOR_START,
+                DEFAULT_VIDEO_COLOR_END,
+                video_url,
+            ),
         )
         connection.commit()
         connection.close()
@@ -1028,7 +1088,8 @@ def video_edit(video_id):
 
     if request.method == "POST":
         title = request.form.get("title", "").strip()
-        description = request.form.get("description", "").strip()
+        excerpt = request.form.get("excerpt", "").strip()
+        body = request.form.get("body", "").strip()
         manual_duration = request.form.get("duration", "").strip()
         video_url = request.form.get("video_url", "").strip() or None
 
@@ -1041,7 +1102,7 @@ def video_edit(video_id):
                 detected = True
 
         error = None
-        if not title or not description:
+        if not title or not excerpt or not body:
             error = "Please fill out every field before saving."
         elif not duration:
             error = (
@@ -1061,10 +1122,10 @@ def video_edit(video_id):
         connection.execute(
             """
             UPDATE videos
-            SET title = ?, description = ?, duration = ?, video_url = ?
+            SET title = ?, excerpt = ?, body = ?, duration = ?, video_url = ?
             WHERE id = ?
             """,
-            (title, description, duration, video_url, video_id),
+            (title, excerpt, body, duration, video_url, video_id),
         )
         connection.commit()
         connection.close()
@@ -1074,7 +1135,8 @@ def video_edit(video_id):
     connection.close()
     form = {
         "title": video["title"],
-        "description": video["description"],
+        "excerpt": video["excerpt"],
+        "body": video["body"],
         "duration": video["duration"],
         "video_url": video["video_url"] or "",
     }

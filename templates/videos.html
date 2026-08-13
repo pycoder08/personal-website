@@ -30,7 +30,7 @@
         </a>
         <div class="card-body">
           <h3><a class="video-title-link" href="{{ url_for('video_detail', video_id=video['id']) }}">{{ video['title'] }}</a></h3>
-          <div>{{ video['description'] | markdown }}</div>
+          <p>{{ video['excerpt'] }}</p>
           {% if is_authenticated %}
           <div class="card-actions">
             <a class="btn btn-ghost btn-sm" href="{{ url_for('video_edit', video_id=video['id']) }}">Edit</a>

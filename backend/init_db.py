@@ -283,6 +283,10 @@ VIDEOS = [
         "Building a Nav Bar From Scratch",
         "A walkthrough of turning a plain list of links into "
         "a sticky, responsive nav bar with an active-page indicator.",
+        "Turns a plain unordered list of links into a sticky, responsive "
+        "nav bar -- covers the CSS for the sticky positioning, the hover "
+        "states, and the active-page indicator that highlights whichever "
+        "link matches the current route.",
         "8:14",
         "#6366f1",
         "#8b5cf6",
@@ -291,6 +295,10 @@ VIDEOS = [
         "Flask Routes Explained",
         "What actually happens between typing a URL and "
         "Flask deciding which function should handle it.",
+        "Walks through what actually happens between typing a URL into "
+        "the browser and Flask deciding which view function should "
+        "handle it -- the URL map, route converters like `<int:id>`, and "
+        "how Flask matches a request to the right function.",
         "12:02",
         "#0ea5e9",
         "#22d3ee",
@@ -299,6 +307,10 @@ VIDEOS = [
         "SQLite in 10 Minutes",
         "Tables, rows, and just enough SQL to store and "
         "retrieve real data from a personal project.",
+        "Covers just enough SQL to be useful: creating tables, inserting "
+        "rows, and running SELECT queries against a real personal-project "
+        "database, plus why parameterized queries matter from the very "
+        "first INSERT.",
         "10:47",
         "#10b981",
         "#34d399",
@@ -307,6 +319,10 @@ VIDEOS = [
         "Designing a Card Grid",
         "Spacing, shadows, and hover states -- the small "
         "details that make a grid of boxes feel like a real product.",
+        "Spacing, shadows, and hover states -- the small details that "
+        "separate a grid of plain boxes from something that feels like a "
+        "real product, using this site's own portfolio grid as the "
+        "working example.",
         "6:33",
         "#f97316",
         "#facc15",
@@ -315,6 +331,10 @@ VIDEOS = [
         "Parameterized Queries, No Excuses",
         "Why string-formatting SQL is dangerous and how "
         "placeholder queries fix it without extra effort.",
+        "Explains why string-formatting SQL is dangerous -- a live demo "
+        "of a basic SQL injection against a vulnerable query -- and how "
+        "placeholder-based parameterized queries close that hole without "
+        "adding any real complexity.",
         "9:21",
         "#e11d48",
         "#fb7185",
@@ -323,6 +343,9 @@ VIDEOS = [
         "From Static HTML to Jinja Templates",
         "Turning four copy-pasted HTML files into one shared "
         "layout with a handful of small, focused templates.",
+        "Turns four copy-pasted HTML files into one shared base template "
+        "with a handful of small, focused Jinja templates extending it -- "
+        "the exact refactor this site went through early on.",
         "11:05",
         "#7c3aed",
         "#a855f7",
@@ -361,7 +384,8 @@ SCHEMA_SCRIPT = """
     CREATE TABLE videos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
-        description TEXT NOT NULL,
+        excerpt TEXT NOT NULL,
+        body TEXT NOT NULL,
         duration TEXT NOT NULL,
         color_start TEXT NOT NULL,
         color_end TEXT NOT NULL,
@@ -410,8 +434,8 @@ def seed_sample_data(connection):
 
     connection.executemany(
         """
-        INSERT INTO videos (title, description, duration, color_start, color_end)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO videos (title, excerpt, body, duration, color_start, color_end)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
         VIDEOS,
     )

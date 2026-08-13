@@ -2,7 +2,7 @@
 
 {% block title %}{{ video['title'] }} -- Muhammad Conn{% endblock %}
 {% block og_title %}{{ video['title'] }}{% endblock %}
-{% block og_description %}{{ video['description'] }}{% endblock %}
+{% block og_description %}{{ video['excerpt'] }}{% endblock %}
 {% block og_type %}video.other{% endblock %}
 
 {% block content %}
@@ -28,7 +28,7 @@
     {% endif %}
 
     <h1>{{ video['title'] }}</h1>
-    <div class="video-description">{{ video['description'] | markdown }}</div>
+    <div class="video-description">{{ video['body'] | markdown }}</div>
 
     {% if video['video_url'] and not yt_id %}
     <p class="video-link">

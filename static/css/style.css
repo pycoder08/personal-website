@@ -792,6 +792,17 @@ code {
   margin: 1.75rem 0;
 }
 
+/* Blog posts and portfolio write-ups are pure reading pages, where a
+   narrower line length (68ch) is more comfortable to read. Videos sit
+   below a wide video player instead, so the description should fill that
+   same width rather than leaving a large empty gap to its right. */
+.video-description p,
+.video-description ul,
+.video-description ol,
+.video-description blockquote {
+  max-width: none;
+}
+
 /* =========================================================
    Add-post form
    ========================================================= */

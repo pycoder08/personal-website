@@ -32,7 +32,8 @@ def _get_video_by_title(title):
 
 NEW_VIDEO_FORM = {
     "title": "A Brand New Test Video",
-    "description": "A video created by the test suite.",
+    "excerpt": "A video created by the test suite.",
+    "body": "The longer description of a video created by the test suite.",
     "duration": "3:33",
 }
 
@@ -68,7 +69,8 @@ def test_edit_video_updates_row(client, good_auth):
         "/videos/1/edit",
         data={
             "title": "An Edited Video Title",
-            "description": "Edited description.",
+            "excerpt": "Edited excerpt.",
+            "body": "Edited body.",
             "duration": "4:44",
         },
         auth=good_auth,
@@ -94,7 +96,8 @@ def test_editing_video_does_not_change_its_stored_colors(client, good_auth):
         "/videos/1/edit",
         data={
             "title": "An Edited Video Title",
-            "description": "Edited description.",
+            "excerpt": "Edited excerpt.",
+            "body": "Edited body.",
             "duration": "4:44",
         },
         auth=good_auth,
@@ -114,7 +117,8 @@ def test_edit_video_flashes_success_message(client, good_auth):
         "/videos/1/edit",
         data={
             "title": "An Edited Video Title",
-            "description": "Edited description.",
+            "excerpt": "Edited excerpt.",
+            "body": "Edited body.",
             "duration": "4:44",
         },
         auth=good_auth,
@@ -145,7 +149,7 @@ def test_new_video_missing_fields_shows_validation_error(client, good_auth):
 
     response = client.post(
         "/videos/new",
-        data={"title": "", "description": "desc", "duration": "1:00"},
+        data={"title": "", "excerpt": "desc", "body": "desc", "duration": "1:00"},
         auth=good_auth,
     )
 
@@ -221,7 +225,8 @@ def test_youtube_url_with_no_manual_duration_uses_detected_duration(
         "/videos/new",
         data={
             "title": "Auto Duration Video",
-            "description": "desc",
+            "excerpt": "desc",
+            "body": "desc",
             "duration": "",
             "video_url": "https://www.youtube.com/watch?v=abc123",
         },
@@ -244,7 +249,8 @@ def test_youtube_url_detected_duration_overrides_manual_entry(
         "/videos/new",
         data={
             "title": "Override Duration Video",
-            "description": "desc",
+            "excerpt": "desc",
+            "body": "desc",
             "duration": "1:11",  # should be ignored in favor of the detected value
             "video_url": "https://youtu.be/xyz789",
         },
@@ -264,7 +270,8 @@ def test_youtube_extraction_failure_falls_back_to_manual_duration(
         "/videos/new",
         data={
             "title": "Manual Fallback Video",
-            "description": "desc",
+            "excerpt": "desc",
+            "body": "desc",
             "duration": "5:55",
             "video_url": "https://www.youtube.com/watch?v=doesnotmatter",
         },
@@ -286,7 +293,8 @@ def test_youtube_extraction_failure_with_no_manual_duration_shows_error(
         "/videos/new",
         data={
             "title": "Should Not Be Created",
-            "description": "desc",
+            "excerpt": "desc",
+            "body": "desc",
             "duration": "",
             "video_url": "https://www.youtube.com/watch?v=doesnotmatter",
         },
@@ -307,7 +315,8 @@ def test_non_youtube_url_does_not_trigger_extraction(client, good_auth, monkeypa
         "/videos/new",
         data={
             "title": "Non-YouTube Link Video",
-            "description": "desc",
+            "excerpt": "desc",
+            "body": "desc",
             "duration": "2:22",
             "video_url": "https://example.com/some-video",
         },
@@ -326,7 +335,8 @@ def test_editing_video_with_youtube_url_detects_duration(client, good_auth, monk
         "/videos/1/edit",
         data={
             "title": "Edited With YouTube Link",
-            "description": "desc",
+            "excerpt": "desc",
+            "body": "desc",
             "duration": "",
             "video_url": "https://www.youtube.com/watch?v=edited123",
         },
@@ -368,7 +378,8 @@ def test_video_with_youtube_url_shows_real_thumbnail_in_grid(client, good_auth, 
         "/videos/new",
         data={
             "title": "Real Thumbnail Video",
-            "description": "desc",
+            "excerpt": "desc",
+            "body": "desc",
             "duration": "",
             "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         },
@@ -394,7 +405,8 @@ def test_video_detail_with_youtube_url_shows_embedded_player(client, good_auth, 
         "/videos/new",
         data={
             "title": "Embedded Player Video",
-            "description": "desc",
+            "excerpt": "desc",
+            "body": "desc",
             "duration": "",
             "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         },
