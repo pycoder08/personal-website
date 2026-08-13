@@ -202,6 +202,41 @@ _ensure_portfolio_pinned_column()
 
 
 # ---------------------------------------------------------------------------
+# Thumbnail fit: uploaded images are shown with object-fit: cover by
+# default (fills the fixed-size thumbnail box, cropping whatever doesn't
+# fit) -- looks right for a normal screenshot, but crops badly for a tall,
+# narrow image like a terminal log. Lets the admin switch a project's
+# uploaded image to object-fit: contain instead (shows the whole image,
+# letterboxed against the project's own gradient) when cover crops out
+# something that matters.
+# ---------------------------------------------------------------------------
+VALID_THUMBNAIL_FITS = {"cover", "contain"}
+DEFAULT_THUMBNAIL_FIT = "cover"
+
+
+def _ensure_portfolio_thumbnail_fit_column():
+    connection = get_db_connection()
+    table_exists = (
+        connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'portfolio_items'"
+        ).fetchone()
+        is not None
+    )
+    if table_exists:
+        columns = {row["name"] for row in connection.execute("PRAGMA table_info(portfolio_items)")}
+        if "thumbnail_fit" not in columns:
+            connection.execute(
+                f"ALTER TABLE portfolio_items ADD COLUMN thumbnail_fit "
+                f"TEXT NOT NULL DEFAULT '{DEFAULT_THUMBNAIL_FIT}'"
+            )
+            connection.commit()
+    connection.close()
+
+
+_ensure_portfolio_thumbnail_fit_column()
+
+
+# ---------------------------------------------------------------------------
 # Videos originally had one `description` column shown in full, verbatim,
 # in both the grid card teaser and the detail page -- fine for a one-line
 # description, but a real problem once someone writes an actual multi-
@@ -620,6 +655,9 @@ def portfolio_new():
         excerpt = request.form.get("excerpt", "").strip()
         body = request.form.get("body", "").strip()
         project_url = request.form.get("project_url", "").strip() or None
+        thumbnail_fit = request.form.get("thumbnail_fit", DEFAULT_THUMBNAIL_FIT)
+        if thumbnail_fit not in VALID_THUMBNAIL_FITS:
+            thumbnail_fit = DEFAULT_THUMBNAIL_FIT
         image_file = request.files.get("image")
         has_upload = image_file is not None and image_file.filename.strip() != ""
 
@@ -644,8 +682,8 @@ def portfolio_new():
             connection.execute(
                 """
                 INSERT INTO portfolio_items
-                    (title, excerpt, body, color_start, color_end, image_filename, project_url)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                    (title, excerpt, body, color_start, color_end, image_filename, project_url, thumbnail_fit)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     title,
@@ -655,6 +693,7 @@ def portfolio_new():
                     DEFAULT_PORTFOLIO_COLOR_END,
                     image_filename,
                     project_url,
+                    thumbnail_fit,
                 ),
             )
             connection.commit()
@@ -697,6 +736,9 @@ def portfolio_edit(item_id):
         excerpt = request.form.get("excerpt", "").strip()
         body = request.form.get("body", "").strip()
         project_url = request.form.get("project_url", "").strip() or None
+        thumbnail_fit = request.form.get("thumbnail_fit", DEFAULT_THUMBNAIL_FIT)
+        if thumbnail_fit not in VALID_THUMBNAIL_FITS:
+            thumbnail_fit = DEFAULT_THUMBNAIL_FIT
         image_file = request.files.get("image")
         has_upload = image_file is not None and image_file.filename.strip() != ""
 
@@ -727,10 +769,10 @@ def portfolio_edit(item_id):
             connection.execute(
                 """
                 UPDATE portfolio_items
-                SET title = ?, excerpt = ?, body = ?, image_filename = ?, project_url = ?
+                SET title = ?, excerpt = ?, body = ?, image_filename = ?, project_url = ?, thumbnail_fit = ?
                 WHERE id = ?
                 """,
-                (title, excerpt, body, image_filename, project_url, item_id),
+                (title, excerpt, body, image_filename, project_url, thumbnail_fit, item_id),
             )
             connection.commit()
             connection.close()
@@ -752,6 +794,7 @@ def portfolio_edit(item_id):
         "excerpt": item["excerpt"],
         "body": item["body"],
         "project_url": item["project_url"] or "",
+        "thumbnail_fit": item["thumbnail_fit"],
     }
     return render_template("portfolio_form.html", error=None, form=form, item=item)
 

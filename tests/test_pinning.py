@@ -133,22 +133,27 @@ def test_pinned_badge_not_shown_when_nothing_pinned(client):
 
 def test_pin_toggle_button_hidden_when_anonymous(client):
     response = client.get("/portfolio")
-    assert b"Pin to Top" not in response.data
+    assert b'title="Pin to top"' not in response.data
     assert b'action="/portfolio/1/pin"' not in response.data
 
 
 def test_pin_toggle_button_shown_when_authenticated(client, good_auth):
     response = client.get("/portfolio", auth=good_auth)
-    assert b"Pin to Top" in response.data
+    assert b'title="Pin to top"' in response.data
     assert b'action="/portfolio/1/pin"' in response.data
 
 
 def test_pin_toggle_button_on_detail_page_reflects_current_state(client, good_auth):
+    """The button is icon-only (see AGENTS-style comment in app.py/CSS: it
+    shouldn't visually compete with Edit/Delete) -- its state is conveyed
+    via the title/aria-label and the is-pinned CSS class, not button text."""
     unpinned = client.get("/portfolio/1", auth=good_auth)
-    assert b"Pin to Top" in unpinned.data
-    assert b"Unpin" not in unpinned.data
+    assert b'title="Pin to top"' in unpinned.data
+    assert b'title="Unpin"' not in unpinned.data
+    assert b"is-pinned" not in unpinned.data
 
     client.post("/portfolio/1/pin", auth=good_auth)
 
     pinned = client.get("/portfolio/1", auth=good_auth)
-    assert b"Unpin" in pinned.data
+    assert b'title="Unpin"' in pinned.data
+    assert b"is-pinned" in pinned.data

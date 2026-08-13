@@ -10,7 +10,7 @@
     <a class="back-link" href="{{ url_for('portfolio') }}">&larr; Back to Portfolio</a>
 
     {% if item['image_filename'] %}
-    <img class="portfolio-full-image" src="{{ url_for('static', filename='images/portfolio/' + item['image_filename']) }}" alt="{{ item['title'] }} screenshot">
+    <img class="portfolio-full-image" style="object-fit: {{ item['thumbnail_fit'] }};{% if item['thumbnail_fit'] == 'contain' %} height: 420px; background: linear-gradient(135deg, {{ item['color_start'] }}, {{ item['color_end'] }});{% endif %}" src="{{ url_for('static', filename='images/portfolio/' + item['image_filename']) }}" alt="{{ item['title'] }} screenshot">
     {% else %}
     <div class="portfolio-full-thumb" style="background: linear-gradient(135deg, {{ item['color_start'] }}, {{ item['color_end'] }});"></div>
     {% endif %}
@@ -30,7 +30,7 @@
     <div class="card-actions">
       <a class="btn btn-ghost btn-sm" href="{{ url_for('portfolio_edit', item_id=item['id']) }}">Edit</a>
       <form class="inline-form" method="POST" action="{{ url_for('portfolio_toggle_pin', item_id=item['id']) }}">
-        <button class="btn btn-ghost btn-sm" type="submit">{{ 'Unpin' if item['pinned'] else 'Pin to Top' }}</button>
+        <button class="btn-icon {{ 'is-pinned' if item['pinned'] }}" type="submit" title="{{ 'Unpin' if item['pinned'] else 'Pin to top' }}" aria-label="{{ 'Unpin' if item['pinned'] else 'Pin to top' }}">&#128204;</button>
       </form>
       <form class="inline-form" method="POST" action="{{ url_for('portfolio_delete', item_id=item['id']) }}" onsubmit="return confirm('Delete this project? This cannot be undone.');">
         <button class="btn btn-danger btn-sm" type="submit">Delete</button>

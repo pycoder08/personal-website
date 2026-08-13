@@ -260,6 +260,37 @@ code {
   display: inline-flex;
 }
 
+/* Small icon-only toggle (pin/unpin) -- deliberately much less visually
+   heavy than the Edit/Delete text buttons next to it, since it's a quick
+   toggle you'll click often, not a primary action. */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-icon:hover {
+  opacity: 1;
+  background: var(--primary-light);
+  border-color: var(--primary);
+}
+
+.btn-icon.is-pinned {
+  opacity: 1;
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  border-color: var(--accent);
+}
+
 /* =========================================================
    Header / nav
    ========================================================= */
@@ -839,7 +870,8 @@ code {
 }
 
 .post-form input,
-.post-form textarea {
+.post-form textarea,
+.post-form select {
   font: inherit;
   padding: 0.65rem 0.8rem;
   border: 1px solid var(--border);
@@ -850,7 +882,8 @@ code {
 }
 
 .post-form input:focus,
-.post-form textarea:focus {
+.post-form textarea:focus,
+.post-form select:focus {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-light);

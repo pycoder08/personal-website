@@ -50,7 +50,7 @@
       <label for="image">Project Image (optional)</label>
       {% if item and item['image_filename'] %}
       <div class="current-image-preview">
-        <img class="thumb-img" src="{{ url_for('static', filename='images/portfolio/' + item['image_filename']) }}" alt="Current image for {{ item['title'] }}">
+        <img class="thumb-img" style="object-fit: {{ item['thumbnail_fit'] }};" src="{{ url_for('static', filename='images/portfolio/' + item['image_filename']) }}" alt="Current image for {{ item['title'] }}">
       </div>
       <p class="form-hint">Currently using the image above. Upload a new file to replace it, or leave this blank to keep it.</p>
       {% else %}
@@ -58,6 +58,14 @@
       {% endif %}
       <input type="file" id="image" name="image" accept=".png,.jpg,.jpeg,.gif,.webp,image/png,image/jpeg,image/gif,image/webp">
       <p class="form-hint">PNG, JPG, GIF, or WEBP -- 5MB max.</p>
+
+      {% set current_fit = form.get('thumbnail_fit', 'cover') if form else 'cover' %}
+      <label for="thumbnail_fit">Thumbnail Fit</label>
+      <select id="thumbnail_fit" name="thumbnail_fit">
+        <option value="cover" {{ 'selected' if current_fit == 'cover' }}>Cover -- fill the frame, cropping edges if needed</option>
+        <option value="contain" {{ 'selected' if current_fit == 'contain' }}>Contain -- show the whole image, letterboxed</option>
+      </select>
+      <p class="form-hint">Only matters if you have an image uploaded. Cover looks best for most screenshots; switch to Contain if cropping cuts off something important, like a tall or narrow image.</p>
 
       <div class="form-actions">
         <a class="btn btn-ghost" href="{{ url_for('portfolio_detail', item_id=item['id']) if item else url_for('portfolio') }}">Cancel</a>
