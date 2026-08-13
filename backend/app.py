@@ -582,9 +582,18 @@ def home():
     featured_items = connection.execute(
         "SELECT * FROM portfolio_items ORDER BY pinned DESC, id ASC LIMIT 3"
     ).fetchall()
+    # Videos have no publish-date column to sort by (unlike posts), so
+    # highest id -- the most recently added row -- is the closest proxy
+    # for "recent".
+    recent_videos = connection.execute(
+        "SELECT * FROM videos ORDER BY id DESC LIMIT 3"
+    ).fetchall()
     connection.close()
     return render_template(
-        "index.html", recent_posts=recent_posts, featured_items=featured_items
+        "index.html",
+        recent_posts=recent_posts,
+        featured_items=featured_items,
+        recent_videos=recent_videos,
     )
 
 

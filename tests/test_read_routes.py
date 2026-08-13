@@ -2,6 +2,8 @@
 mutate anything, so the shared `client` fixture (fresh reseeded temp DB per
 test) is enough."""
 
+import db as db_module
+
 
 def test_home_returns_200_with_expected_content(client):
     response = client.get("/")
@@ -12,6 +14,36 @@ def test_home_returns_200_with_expected_content(client):
     # Home only shows the 3 most recent posts by date_iso -- this one
     # (2026-07-24) is the newest in the seed data.
     assert b"Giving the Videos Page an Actual Purpose" in response.data
+
+
+def test_home_has_a_watch_videos_hero_button(client):
+    response = client.get("/")
+    assert b'href="/videos"' in response.data
+    assert b"Watch Videos" in response.data
+
+
+def test_home_shows_recent_videos_section(client):
+    response = client.get("/")
+    assert b"Recent Videos" in response.data
+    assert b'href="/videos">See all videos' in response.data
+    # Home shows the 3 most recently added videos by id -- videos have no
+    # publish-date column, so id 6 (last in seed order) is "newest".
+    assert b"From Static HTML to Jinja Templates" in response.data
+    assert b"Parameterized Queries, No Excuses" in response.data
+    assert b"Designing a Card Grid" in response.data
+    # Only the 3 most recent -- the oldest seeded video shouldn't appear.
+    assert b"Building a Nav Bar From Scratch" not in response.data
+
+
+def test_home_hides_recent_videos_section_when_there_are_none(client):
+    connection = db_module.get_db_connection()
+    connection.execute("DELETE FROM videos")
+    connection.commit()
+    connection.close()
+
+    response = client.get("/")
+    assert response.status_code == 200
+    assert b"Recent Videos" not in response.data
 
 
 def test_portfolio_list_returns_200_with_seeded_items(client):

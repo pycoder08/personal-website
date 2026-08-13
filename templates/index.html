@@ -16,6 +16,7 @@
     <div class="hero-actions">
       <a class="btn btn-primary" href="{{ url_for('portfolio') }}">View Portfolio</a>
       <a class="btn btn-ghost" href="{{ url_for('blog_list') }}">Read the Blog</a>
+      <a class="btn btn-ghost" href="{{ url_for('videos') }}">Watch Videos</a>
     </div>
   </section>
 
@@ -58,6 +59,34 @@
         <h3><a href="{{ url_for('blog_post', post_id=post['id']) }}">{{ post['title'] }}</a></h3>
         <p>{{ post['excerpt'] }}</p>
         <a class="read-more" href="{{ url_for('blog_post', post_id=post['id']) }}">Read more &rarr;</a>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if recent_videos %}
+  <section class="section">
+    <div class="section-header">
+      <h2>Recent Videos</h2>
+      <a class="see-all" href="{{ url_for('videos') }}">See all videos &rarr;</a>
+    </div>
+    <div class="video-grid">
+      {% for video in recent_videos %}
+      {% set yt_id = video['video_url'] | youtube_id %}
+      <article class="card video-card">
+        <a class="video-thumb-link" href="{{ url_for('video_detail', video_id=video['id']) }}">
+          <div class="video-thumb" {% if not yt_id %}style="background: linear-gradient(135deg, {{ video['color_start'] }}, {{ video['color_end'] }});"{% endif %}>
+            {% if yt_id %}
+            <img class="video-thumb-img" src="https://img.youtube.com/vi/{{ yt_id }}/hqdefault.jpg" alt="{{ video['title'] }} thumbnail" loading="lazy">
+            {% endif %}
+            <span class="video-duration">{{ video['duration'] }}</span>
+          </div>
+        </a>
+        <div class="card-body">
+          <h3><a class="video-title-link" href="{{ url_for('video_detail', video_id=video['id']) }}">{{ video['title'] }}</a></h3>
+          <p>{{ video['excerpt'] }}</p>
+        </div>
       </article>
       {% endfor %}
     </div>
