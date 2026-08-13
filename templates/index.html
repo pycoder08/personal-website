@@ -20,28 +20,62 @@
     </div>
   </section>
 
-  {% if featured_items %}
+  {% if featured_items or recent_videos %}
   <section class="section">
-    <div class="section-header">
-      <h2>Featured Work</h2>
-      <a class="see-all" href="{{ url_for('portfolio') }}">See all projects &rarr;</a>
-    </div>
-    <div class="portfolio-grid">
-      {% for item in featured_items %}
-      <article class="card portfolio-card">
-        <a class="portfolio-thumb-link" href="{{ url_for('portfolio_detail', item_id=item['id']) }}">
-          {% if item['image_filename'] %}
-          <img class="thumb thumb-img" src="{{ url_for('static', filename='images/portfolio/' + item['image_filename']) }}" alt="{{ item['title'] }} screenshot">
-          {% else %}
-          <div class="thumb" style="background: linear-gradient(135deg, {{ item['color_start'] }}, {{ item['color_end'] }});"></div>
-          {% endif %}
-        </a>
-        <div class="card-body">
-          <h3><a class="portfolio-title-link" href="{{ url_for('portfolio_detail', item_id=item['id']) }}">{{ item['title'] }}</a></h3>
-          <p>{{ item['excerpt'] }}</p>
+    <div class="home-highlights">
+      {% if featured_items %}
+      <div class="home-highlight-col">
+        <div class="section-header">
+          <h2>Featured Work</h2>
+          <a class="see-all" href="{{ url_for('portfolio') }}">See all projects &rarr;</a>
         </div>
-      </article>
-      {% endfor %}
+        <div class="portfolio-grid home-highlight-grid">
+          {% for item in featured_items %}
+          <article class="card portfolio-card">
+            <a class="portfolio-thumb-link" href="{{ url_for('portfolio_detail', item_id=item['id']) }}">
+              {% if item['image_filename'] %}
+              <img class="thumb thumb-img" src="{{ url_for('static', filename='images/portfolio/' + item['image_filename']) }}" alt="{{ item['title'] }} screenshot">
+              {% else %}
+              <div class="thumb" style="background: linear-gradient(135deg, {{ item['color_start'] }}, {{ item['color_end'] }});"></div>
+              {% endif %}
+            </a>
+            <div class="card-body">
+              <h3><a class="portfolio-title-link" href="{{ url_for('portfolio_detail', item_id=item['id']) }}">{{ item['title'] }}</a></h3>
+              <p>{{ item['excerpt'] }}</p>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if recent_videos %}
+      <div class="home-highlight-col">
+        <div class="section-header">
+          <h2>Recent Videos</h2>
+          <a class="see-all" href="{{ url_for('videos') }}">See all videos &rarr;</a>
+        </div>
+        <div class="video-grid home-highlight-grid">
+          {% for video in recent_videos %}
+          {% set yt_id = video['video_url'] | youtube_id %}
+          <article class="card video-card">
+            <a class="video-thumb-link" href="{{ url_for('video_detail', video_id=video['id']) }}">
+              <div class="video-thumb" {% if not yt_id %}style="background: linear-gradient(135deg, {{ video['color_start'] }}, {{ video['color_end'] }});"{% endif %}>
+                {% if yt_id %}
+                <img class="video-thumb-img" src="https://img.youtube.com/vi/{{ yt_id }}/hqdefault.jpg" alt="{{ video['title'] }} thumbnail" loading="lazy">
+                {% endif %}
+                <span class="video-duration">{{ video['duration'] }}</span>
+              </div>
+            </a>
+            <div class="card-body">
+              <h3><a class="video-title-link" href="{{ url_for('video_detail', video_id=video['id']) }}">{{ video['title'] }}</a></h3>
+              <p>{{ video['excerpt'] }}</p>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
     </div>
   </section>
   {% endif %}
@@ -52,41 +86,13 @@
       <h2>Recent Posts</h2>
       <a class="see-all" href="{{ url_for('blog_list') }}">See all posts &rarr;</a>
     </div>
-    <div class="post-list">
+    <div class="post-list home-post-grid">
       {% for post in recent_posts %}
       <article class="card post-preview">
         <time class="post-date">{{ post['date_display'] }}</time>
         <h3><a href="{{ url_for('blog_post', post_id=post['id']) }}">{{ post['title'] }}</a></h3>
         <p>{{ post['excerpt'] }}</p>
         <a class="read-more" href="{{ url_for('blog_post', post_id=post['id']) }}">Read more &rarr;</a>
-      </article>
-      {% endfor %}
-    </div>
-  </section>
-  {% endif %}
-
-  {% if recent_videos %}
-  <section class="section">
-    <div class="section-header">
-      <h2>Recent Videos</h2>
-      <a class="see-all" href="{{ url_for('videos') }}">See all videos &rarr;</a>
-    </div>
-    <div class="video-grid">
-      {% for video in recent_videos %}
-      {% set yt_id = video['video_url'] | youtube_id %}
-      <article class="card video-card">
-        <a class="video-thumb-link" href="{{ url_for('video_detail', video_id=video['id']) }}">
-          <div class="video-thumb" {% if not yt_id %}style="background: linear-gradient(135deg, {{ video['color_start'] }}, {{ video['color_end'] }});"{% endif %}>
-            {% if yt_id %}
-            <img class="video-thumb-img" src="https://img.youtube.com/vi/{{ yt_id }}/hqdefault.jpg" alt="{{ video['title'] }} thumbnail" loading="lazy">
-            {% endif %}
-            <span class="video-duration">{{ video['duration'] }}</span>
-          </div>
-        </a>
-        <div class="card-body">
-          <h3><a class="video-title-link" href="{{ url_for('video_detail', video_id=video['id']) }}">{{ video['title'] }}</a></h3>
-          <p>{{ video['excerpt'] }}</p>
-        </div>
       </article>
       {% endfor %}
     </div>

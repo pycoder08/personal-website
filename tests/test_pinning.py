@@ -98,12 +98,14 @@ def test_pinned_item_sorts_first_in_featured_work(client, good_auth):
 def test_featured_work_falls_back_to_lowest_ids_when_nothing_pinned(client):
     """Existing behavior, preserved: with nothing pinned, ORDER BY pinned
     DESC, id ASC degrades to the original ORDER BY id -- the featured
-    section still shows the first 3 projects, not an empty section."""
+    section still shows the first 2 projects (the homepage's Featured
+    Work/Recent Videos pair shows 2 apiece, see home() in app.py), not an
+    empty section."""
     response = client.get("/")
     body = response.data.decode()
     assert "Personal Site Rebuild" in body
     assert body.index("Personal Site Rebuild") < body.index("SQL Study Tracker")
-    assert body.index("SQL Study Tracker") < body.index("Weather CLI")
+    assert "Weather CLI" not in body
 
 
 def test_unpinned_items_keep_id_order_among_themselves(client, good_auth):

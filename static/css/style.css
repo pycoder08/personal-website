@@ -1266,8 +1266,44 @@ code {
 }
 
 /* =========================================================
+   Homepage layout: Featured Work and Recent Videos side by side
+   (matching card styles, so pairing them reads naturally), Recent Posts
+   as a compact row underneath -- keeps the whole homepage visible with
+   far less scrolling than three full-width stacked sections.
+   ========================================================= */
+.home-highlights {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.5rem;
+}
+
+.portfolio-grid.home-highlight-grid,
+.video-grid.home-highlight-grid {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.post-list.home-post-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+
+/* =========================================================
    Responsive
    ========================================================= */
+@media (max-width: 900px) {
+  /* Featured Work / Recent Videos stack instead of squeezing two 2-card
+     grids side by side into a shrinking viewport. */
+  .home-highlights {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+
+  .post-list.home-post-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 640px) {
   .header-inner {
     justify-content: center;
@@ -1294,5 +1330,11 @@ code {
 
   .post-form {
     padding: 1.25rem;
+  }
+
+  .portfolio-grid.home-highlight-grid,
+  .video-grid.home-highlight-grid,
+  .post-list.home-post-grid {
+    grid-template-columns: 1fr;
   }
 }

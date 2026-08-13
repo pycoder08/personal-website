@@ -26,12 +26,14 @@ def test_home_shows_recent_videos_section(client):
     response = client.get("/")
     assert b"Recent Videos" in response.data
     assert b'href="/videos">See all videos' in response.data
-    # Home shows the 3 most recently added videos by id -- videos have no
-    # publish-date column, so id 6 (last in seed order) is "newest".
+    # Home shows the 2 most recently added videos by id -- videos have no
+    # publish-date column, so id 6 (last in seed order) is "newest". Only
+    # 2 (not 3) since this section sits side by side with Featured Work,
+    # see home() in app.py.
     assert b"From Static HTML to Jinja Templates" in response.data
     assert b"Parameterized Queries, No Excuses" in response.data
-    assert b"Designing a Card Grid" in response.data
-    # Only the 3 most recent -- the oldest seeded video shouldn't appear.
+    # Only the 2 most recent -- older seeded videos shouldn't appear.
+    assert b"Designing a Card Grid" not in response.data
     assert b"Building a Nav Bar From Scratch" not in response.data
 
 

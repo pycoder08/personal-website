@@ -579,14 +579,17 @@ def home():
     recent_posts = connection.execute(
         "SELECT * FROM posts ORDER BY date_iso DESC LIMIT 3"
     ).fetchall()
+    # Featured Work and Recent Videos sit side by side on the homepage
+    # (see index.html), so 2 apiece keeps the pair visually balanced --
+    # each still links to its full page for the rest.
     featured_items = connection.execute(
-        "SELECT * FROM portfolio_items ORDER BY pinned DESC, id ASC LIMIT 3"
+        "SELECT * FROM portfolio_items ORDER BY pinned DESC, id ASC LIMIT 2"
     ).fetchall()
     # Videos have no publish-date column to sort by (unlike posts), so
     # highest id -- the most recently added row -- is the closest proxy
     # for "recent".
     recent_videos = connection.execute(
-        "SELECT * FROM videos ORDER BY id DESC LIMIT 3"
+        "SELECT * FROM videos ORDER BY id DESC LIMIT 2"
     ).fetchall()
     connection.close()
     return render_template(
