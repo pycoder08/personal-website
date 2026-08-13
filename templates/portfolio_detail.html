@@ -10,7 +10,7 @@
     <a class="back-link" href="{{ url_for('portfolio') }}">&larr; Back to Portfolio</a>
 
     {% if item['image_filename'] %}
-    <img class="portfolio-full-image" style="object-fit: {{ item['thumbnail_fit'] }};{% if item['thumbnail_fit'] == 'contain' %} height: 420px; background: linear-gradient(135deg, {{ item['color_start'] }}, {{ item['color_end'] }});{% endif %}" src="{{ url_for('static', filename='images/portfolio/' + item['image_filename']) }}" alt="{{ item['title'] }} screenshot">
+    <img class="portfolio-full-image" style="object-fit: {{ item['thumbnail_fit'] }}; object-position: {{ item['thumbnail_position'] }};{% if item['thumbnail_fit'] == 'contain' %} height: 420px; background: linear-gradient(135deg, {{ item['color_start'] }}, {{ item['color_end'] }});{% endif %}" src="{{ url_for('static', filename='images/portfolio/' + item['image_filename']) }}" alt="{{ item['title'] }} screenshot">
     {% else %}
     <div class="portfolio-full-thumb" style="background: linear-gradient(135deg, {{ item['color_start'] }}, {{ item['color_end'] }});"></div>
     {% endif %}

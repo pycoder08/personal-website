@@ -237,6 +237,41 @@ _ensure_portfolio_thumbnail_fit_column()
 
 
 # ---------------------------------------------------------------------------
+# Thumbnail position: object-fit: cover crops symmetrically around the
+# image's center by default, which can crop out exactly the part that
+# matters -- e.g. a screenshot where the important content starts at the
+# top gets its top cropped off just as readily as its bottom. Lets the
+# admin choose which edge cover crops from instead of always centering.
+# Also affects contain (positions the image within the letterboxed area),
+# though centered is almost always what you want there.
+# ---------------------------------------------------------------------------
+VALID_THUMBNAIL_POSITIONS = {"top", "center", "bottom"}
+DEFAULT_THUMBNAIL_POSITION = "center"
+
+
+def _ensure_portfolio_thumbnail_position_column():
+    connection = get_db_connection()
+    table_exists = (
+        connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'portfolio_items'"
+        ).fetchone()
+        is not None
+    )
+    if table_exists:
+        columns = {row["name"] for row in connection.execute("PRAGMA table_info(portfolio_items)")}
+        if "thumbnail_position" not in columns:
+            connection.execute(
+                f"ALTER TABLE portfolio_items ADD COLUMN thumbnail_position "
+                f"TEXT NOT NULL DEFAULT '{DEFAULT_THUMBNAIL_POSITION}'"
+            )
+            connection.commit()
+    connection.close()
+
+
+_ensure_portfolio_thumbnail_position_column()
+
+
+# ---------------------------------------------------------------------------
 # Videos originally had one `description` column shown in full, verbatim,
 # in both the grid card teaser and the detail page -- fine for a one-line
 # description, but a real problem once someone writes an actual multi-
@@ -658,6 +693,9 @@ def portfolio_new():
         thumbnail_fit = request.form.get("thumbnail_fit", DEFAULT_THUMBNAIL_FIT)
         if thumbnail_fit not in VALID_THUMBNAIL_FITS:
             thumbnail_fit = DEFAULT_THUMBNAIL_FIT
+        thumbnail_position = request.form.get("thumbnail_position", DEFAULT_THUMBNAIL_POSITION)
+        if thumbnail_position not in VALID_THUMBNAIL_POSITIONS:
+            thumbnail_position = DEFAULT_THUMBNAIL_POSITION
         image_file = request.files.get("image")
         has_upload = image_file is not None and image_file.filename.strip() != ""
 
@@ -682,8 +720,8 @@ def portfolio_new():
             connection.execute(
                 """
                 INSERT INTO portfolio_items
-                    (title, excerpt, body, color_start, color_end, image_filename, project_url, thumbnail_fit)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    (title, excerpt, body, color_start, color_end, image_filename, project_url, thumbnail_fit, thumbnail_position)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     title,
@@ -694,6 +732,7 @@ def portfolio_new():
                     image_filename,
                     project_url,
                     thumbnail_fit,
+                    thumbnail_position,
                 ),
             )
             connection.commit()
@@ -739,6 +778,9 @@ def portfolio_edit(item_id):
         thumbnail_fit = request.form.get("thumbnail_fit", DEFAULT_THUMBNAIL_FIT)
         if thumbnail_fit not in VALID_THUMBNAIL_FITS:
             thumbnail_fit = DEFAULT_THUMBNAIL_FIT
+        thumbnail_position = request.form.get("thumbnail_position", DEFAULT_THUMBNAIL_POSITION)
+        if thumbnail_position not in VALID_THUMBNAIL_POSITIONS:
+            thumbnail_position = DEFAULT_THUMBNAIL_POSITION
         image_file = request.files.get("image")
         has_upload = image_file is not None and image_file.filename.strip() != ""
 
@@ -769,10 +811,19 @@ def portfolio_edit(item_id):
             connection.execute(
                 """
                 UPDATE portfolio_items
-                SET title = ?, excerpt = ?, body = ?, image_filename = ?, project_url = ?, thumbnail_fit = ?
+                SET title = ?, excerpt = ?, body = ?, image_filename = ?, project_url = ?, thumbnail_fit = ?, thumbnail_position = ?
                 WHERE id = ?
                 """,
-                (title, excerpt, body, image_filename, project_url, thumbnail_fit, item_id),
+                (
+                    title,
+                    excerpt,
+                    body,
+                    image_filename,
+                    project_url,
+                    thumbnail_fit,
+                    thumbnail_position,
+                    item_id,
+                ),
             )
             connection.commit()
             connection.close()
@@ -795,6 +846,7 @@ def portfolio_edit(item_id):
         "body": item["body"],
         "project_url": item["project_url"] or "",
         "thumbnail_fit": item["thumbnail_fit"],
+        "thumbnail_position": item["thumbnail_position"],
     }
     return render_template("portfolio_form.html", error=None, form=form, item=item)
 

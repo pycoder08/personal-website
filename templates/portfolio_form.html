@@ -50,7 +50,7 @@
       <label for="image">Project Image (optional)</label>
       {% if item and item['image_filename'] %}
       <div class="current-image-preview">
-        <img class="thumb-img" style="object-fit: {{ item['thumbnail_fit'] }};" src="{{ url_for('static', filename='images/portfolio/' + item['image_filename']) }}" alt="Current image for {{ item['title'] }}">
+        <img class="thumb-img" style="object-fit: {{ item['thumbnail_fit'] }}; object-position: {{ item['thumbnail_position'] }};" src="{{ url_for('static', filename='images/portfolio/' + item['image_filename']) }}" alt="Current image for {{ item['title'] }}">
       </div>
       <p class="form-hint">Currently using the image above. Upload a new file to replace it, or leave this blank to keep it.</p>
       {% else %}
@@ -66,6 +66,15 @@
         <option value="contain" {{ 'selected' if current_fit == 'contain' }}>Contain -- show the whole image, letterboxed</option>
       </select>
       <p class="form-hint">Only matters if you have an image uploaded. Cover looks best for most screenshots; switch to Contain if cropping cuts off something important, like a tall or narrow image.</p>
+
+      {% set current_position = form.get('thumbnail_position', 'center') if form else 'center' %}
+      <label for="thumbnail_position">Thumbnail Position</label>
+      <select id="thumbnail_position" name="thumbnail_position">
+        <option value="top" {{ 'selected' if current_position == 'top' }}>Top</option>
+        <option value="center" {{ 'selected' if current_position == 'center' }}>Center</option>
+        <option value="bottom" {{ 'selected' if current_position == 'bottom' }}>Bottom</option>
+      </select>
+      <p class="form-hint">Which edge to keep when Cover has to crop the image. If the important part of a tall screenshot is getting cut off, try Top.</p>
 
       <div class="form-actions">
         <a class="btn btn-ghost" href="{{ url_for('portfolio_detail', item_id=item['id']) if item else url_for('portfolio') }}">Cancel</a>

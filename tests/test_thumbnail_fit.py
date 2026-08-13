@@ -101,3 +101,70 @@ def test_contain_fit_applied_on_detail_page_with_gradient_letterbox(client, good
     response = client.get(f"/portfolio/{item['id']}")
     assert b"object-fit: contain;" in response.data
     assert b"linear-gradient(135deg," in response.data
+
+
+# --- Thumbnail position (top/center/bottom) ---------------------------------
+
+
+def test_new_item_defaults_to_center_position(client, good_auth):
+    client.post("/portfolio/new", data=NEW_ITEM_FORM, auth=good_auth)
+    assert _get_item("A Thumbnail Fit Test Project")["thumbnail_position"] == "center"
+
+
+def test_new_item_can_be_created_with_top_position(client, good_auth):
+    form = dict(NEW_ITEM_FORM)
+    form["thumbnail_position"] = "top"
+    client.post("/portfolio/new", data=form, auth=good_auth)
+    assert _get_item("A Thumbnail Fit Test Project")["thumbnail_position"] == "top"
+
+
+def test_invalid_thumbnail_position_value_falls_back_to_center(client, good_auth):
+    form = dict(NEW_ITEM_FORM)
+    form["thumbnail_position"] = "diagonally"  # not a real option
+    client.post("/portfolio/new", data=form, auth=good_auth)
+    assert _get_item("A Thumbnail Fit Test Project")["thumbnail_position"] == "center"
+
+
+def test_editing_an_item_can_change_its_thumbnail_position(client, good_auth):
+    client.post(
+        "/portfolio/1/edit",
+        data={"title": "Personal Site Rebuild", "excerpt": "e", "body": "b", "thumbnail_position": "bottom"},
+        auth=good_auth,
+    )
+
+    connection = db_module.get_db_connection()
+    after = connection.execute(
+        "SELECT thumbnail_position FROM portfolio_items WHERE id = 1"
+    ).fetchone()
+    connection.close()
+    assert after["thumbnail_position"] == "bottom"
+
+
+def test_thumbnail_position_form_offers_all_three_options(client, good_auth):
+    response = client.get("/portfolio/new", auth=good_auth)
+    assert response.status_code == 200
+    assert b'name="thumbnail_position"' in response.data
+    assert b'value="top"' in response.data
+    assert b'value="center"' in response.data
+    assert b'value="bottom"' in response.data
+
+
+def test_top_position_applied_as_inline_style_on_grid_card(client, good_auth):
+    form = dict(NEW_ITEM_FORM)
+    form["thumbnail_position"] = "top"
+    form["image"] = (io.BytesIO(VALID_IMAGE_BYTES), "screenshot.png")
+    client.post("/portfolio/new", data=form, auth=good_auth)
+
+    response = client.get("/portfolio")
+    assert b"object-position: top;" in response.data
+
+
+def test_top_position_applied_on_detail_page(client, good_auth):
+    form = dict(NEW_ITEM_FORM)
+    form["thumbnail_position"] = "top"
+    form["image"] = (io.BytesIO(VALID_IMAGE_BYTES), "screenshot.png")
+    client.post("/portfolio/new", data=form, auth=good_auth)
+
+    item = _get_item("A Thumbnail Fit Test Project")
+    response = client.get(f"/portfolio/{item['id']}")
+    assert b"object-position: top;" in response.data

@@ -34,7 +34,7 @@
           <article class="card portfolio-card">
             <a class="portfolio-thumb-link" href="{{ url_for('portfolio_detail', item_id=item['id']) }}">
               {% if item['image_filename'] %}
-              <img class="thumb thumb-img" style="object-fit: {{ item['thumbnail_fit'] }};{% if item['thumbnail_fit'] == 'contain' %} background: linear-gradient(135deg, {{ item['color_start'] }}, {{ item['color_end'] }});{% endif %}" src="{{ url_for('static', filename='images/portfolio/' + item['image_filename']) }}" alt="{{ item['title'] }} screenshot">
+              <img class="thumb thumb-img" style="object-fit: {{ item['thumbnail_fit'] }}; object-position: {{ item['thumbnail_position'] }};{% if item['thumbnail_fit'] == 'contain' %} background: linear-gradient(135deg, {{ item['color_start'] }}, {{ item['color_end'] }});{% endif %}" src="{{ url_for('static', filename='images/portfolio/' + item['image_filename']) }}" alt="{{ item['title'] }} screenshot">
               {% else %}
               <div class="thumb" style="background: linear-gradient(135deg, {{ item['color_start'] }}, {{ item['color_end'] }});"></div>
               {% endif %}
