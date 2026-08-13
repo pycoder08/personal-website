@@ -250,7 +250,13 @@ def save_content_image(file_storage):
 # through an HTML sanitizer.
 # ---------------------------------------------------------------------------
 def render_markdown(text):
-    html = markdown_lib.markdown(text, extensions=["extra", "sane_lists"])
+    # nl2br: a single Enter press (one newline, no blank line) becomes a
+    # real line break instead of being silently swallowed. Standard
+    # Markdown only starts a new paragraph on a blank line -- technically
+    # correct, but surprising for anyone not already fluent in Markdown's
+    # conventions, and this app is meant to be typed into by exactly one
+    # person who shouldn't have to learn that rule first.
+    html = markdown_lib.markdown(text, extensions=["extra", "sane_lists", "nl2br"])
     return Markup(html)
 
 

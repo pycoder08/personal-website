@@ -58,6 +58,21 @@ def test_blog_post_markdown_source_is_not_shown_raw(client, good_auth):
     assert b"**bold**" not in response.data
 
 
+def test_single_line_breaks_render_as_br_not_get_swallowed(client, good_auth):
+    """Standard Markdown only starts a new paragraph on a blank line, which
+    silently mashes together anything separated by a single Enter press --
+    surprising for someone not already fluent in Markdown. nl2br fixes
+    that: a lone newline becomes a real <br>, not nothing."""
+    form = dict(NEW_POST_FORM)
+    form["body"] = "Line one.\nLine two.\nLine three."
+    client.post("/blog/new", data=form, auth=good_auth)
+
+    response = client.get(f"/blog/{_new_post_id()}")
+    assert b"Line one.<br" in response.data
+    assert b"Line two.<br" in response.data
+    assert b"Line three." in response.data
+
+
 def test_portfolio_body_renders_markdown_to_real_html(client, good_auth):
     client.post("/portfolio/new", data=NEW_PROJECT_FORM, auth=good_auth)
 
