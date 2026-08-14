@@ -1,4 +1,6 @@
-"""Blog post CRUD, tag filtering, search, pagination, and form validation."""
+"""Blog post CRUD, multi-tag support, search, pagination, and form
+validation. Tags are a many-to-many relationship (tags + post_tags), not a
+single column -- a post can carry more than one tag."""
 
 import re
 
@@ -12,10 +14,35 @@ def _count_posts():
     return count
 
 
+def _tags_for(post_id):
+    connection = db_module.get_db_connection()
+    names = [
+        row["name"]
+        for row in connection.execute(
+            """
+            SELECT tags.name FROM tags
+            JOIN post_tags ON post_tags.tag_id = tags.id
+            WHERE post_tags.post_id = ?
+            ORDER BY tags.name
+            """,
+            (post_id,),
+        ).fetchall()
+    ]
+    connection.close()
+    return names
+
+
+def _post_id_by_title(title):
+    connection = db_module.get_db_connection()
+    row = connection.execute("SELECT id FROM posts WHERE title = ?", (title,)).fetchone()
+    connection.close()
+    return row["id"]
+
+
 NEW_POST_FORM = {
     "title": "A Brand New Test Post",
     "date": "2026-08-01",
-    "tag": "Testing",
+    "tags": "Testing",
     "excerpt": "A short teaser for the new post.",
     "body": "The full body of the new post.",
 }
@@ -42,13 +69,27 @@ def test_create_post_flashes_success_message(client, good_auth):
     assert b"Post published." in response.data
 
 
+def test_create_post_with_multiple_tags_shows_all_of_them(client, good_auth):
+    form = dict(NEW_POST_FORM)
+    form["tags"] = "SQL, Backend, Testing"
+    client.post("/blog/new", data=form, auth=good_auth)
+
+    post_id = _post_id_by_title("A Brand New Test Post")
+    assert _tags_for(post_id) == ["Backend", "SQL", "Testing"]
+
+    response = client.get(f"/blog/{post_id}")
+    assert b"SQL" in response.data
+    assert b"Backend" in response.data
+    assert b"Testing" in response.data
+
+
 def test_edit_post_updates_row(client, good_auth):
     response = client.post(
         "/blog/1/edit",
         data={
             "title": "An Edited Title",
             "date": "2026-06-02",
-            "tag": "Process",
+            "tags": "Process",
             "excerpt": "Edited excerpt.",
             "body": "Edited body.",
         },
@@ -68,7 +109,7 @@ def test_edit_post_flashes_success_message(client, good_auth):
         data={
             "title": "An Edited Title",
             "date": "2026-06-02",
-            "tag": "Process",
+            "tags": "Process",
             "excerpt": "Edited excerpt.",
             "body": "Edited body.",
         },
@@ -77,6 +118,26 @@ def test_edit_post_flashes_success_message(client, good_auth):
     )
     assert response.status_code == 200
     assert b"Post updated." in response.data
+
+
+def test_edit_post_replaces_its_entire_tag_set(client, good_auth):
+    # Post 2 is seeded with ["Backend", "SQL"] -- editing it to a totally
+    # different tag set should replace both, not add to them.
+    assert _tags_for(2) == ["Backend", "SQL"]
+
+    client.post(
+        "/blog/2/edit",
+        data={
+            "title": "My First Real SQL Query (And Why It Didn't Work)",
+            "date": "2026-06-14",
+            "tags": "Design, Process",
+            "excerpt": "e",
+            "body": "b",
+        },
+        auth=good_auth,
+    )
+
+    assert _tags_for(2) == ["Design", "Process"]
 
 
 def test_delete_post_removes_row_and_subsequent_get_404s(client, good_auth):
@@ -96,21 +157,24 @@ def test_delete_post_flashes_success_message(client, good_auth):
     assert b"Post deleted." in response.data
 
 
-def test_tag_filter_returns_only_matching_posts(client):
-    response = client.get("/blog?tag=SQL")
-    assert response.status_code == 200
-    # Both SQL-tagged seed posts should be present...
-    assert b"My First Real SQL Query" in response.data
-    assert b"Turning a Hardcoded List Into a Database Table" in response.data
-    # ...but posts tagged something else should not be.
-    assert b"Giving the Videos Page an Actual Purpose" not in response.data
-    assert b"What &#39;Add Post&#39; Actually Does" not in response.data
+def test_delete_post_also_removes_its_tag_associations(client, good_auth):
+    """post_tags has a real foreign key with ON DELETE CASCADE (db.py turns
+    on PRAGMA foreign_keys), so deleting a post shouldn't leave orphaned
+    rows in post_tags behind it."""
+    connection = db_module.get_db_connection()
+    before = connection.execute("SELECT COUNT(*) AS n FROM post_tags").fetchone()["n"]
+    connection.close()
 
+    client.post("/blog/2/delete", auth=good_auth)  # seeded with 2 tags
 
-def test_tag_filter_with_no_matches_shows_empty_state_not_error(client):
-    response = client.get("/blog?tag=NoSuchTagAtAll")
-    assert response.status_code == 200
-    assert b"No posts tagged" in response.data
+    connection = db_module.get_db_connection()
+    after = connection.execute("SELECT COUNT(*) AS n FROM post_tags").fetchone()["n"]
+    orphaned = connection.execute(
+        "SELECT COUNT(*) AS n FROM post_tags WHERE post_id = 2"
+    ).fetchone()["n"]
+    connection.close()
+    assert after == before - 2
+    assert orphaned == 0
 
 
 def test_new_post_missing_fields_shows_validation_error(client, good_auth):
@@ -121,7 +185,7 @@ def test_new_post_missing_fields_shows_validation_error(client, good_auth):
         data={
             "title": "",
             "date": "2026-08-01",
-            "tag": "Testing",
+            "tags": "Testing",
             "excerpt": "teaser",
             "body": "body",
         },
@@ -134,63 +198,93 @@ def test_new_post_missing_fields_shows_validation_error(client, good_auth):
     assert _count_posts() == before
 
 
+def test_new_post_with_no_tags_at_all_shows_validation_error(client, good_auth):
+    before = _count_posts()
+
+    response = client.post(
+        "/blog/new",
+        data={
+            "title": "A Post With No Tags",
+            "date": "2026-08-01",
+            "tags": "   ",  # blank after stripping -- no real tags submitted
+            "excerpt": "teaser",
+            "body": "body",
+        },
+        auth=good_auth,
+    )
+
+    assert response.status_code == 200
+    assert b"Please fill out every field before publishing." in response.data
+    assert _count_posts() == before
+
+
 # ---------------------------------------------------------------------------
 # Tag normalization: reduce accidental duplicate tags caused by typos in
-# case or surrounding whitespace.
+# case or surrounding whitespace. Now per-tag, since a post can have more
+# than one.
 # ---------------------------------------------------------------------------
 
 
 def test_new_post_tag_normalized_to_match_existing_casing(client, good_auth):
-    # Seed data already has a post tagged exactly "SQL".
+    # Seed data already has posts tagged exactly "SQL".
     form = dict(NEW_POST_FORM)
-    form["tag"] = "sql"
+    form["tags"] = "sql"
 
     response = client.post("/blog/new", data=form, auth=good_auth)
     assert response.status_code == 302
 
+    post_id = _post_id_by_title(form["title"])
+    assert _tags_for(post_id) == ["SQL"]
+
     connection = db_module.get_db_connection()
-    row = connection.execute(
-        "SELECT tag FROM posts WHERE title = ?", (form["title"],)
-    ).fetchone()
-    distinct_tags = [
-        r["tag"] for r in connection.execute("SELECT DISTINCT tag FROM posts").fetchall()
+    distinct_names = [
+        r["name"] for r in connection.execute("SELECT name FROM tags").fetchall()
     ]
     connection.close()
+    # No separate "sql" tag row was created alongside "SQL".
+    assert "sql" not in distinct_names
+    assert distinct_names.count("SQL") == 1
 
-    assert row["tag"] == "SQL"
-    # No separate "sql" tag was created alongside "SQL".
-    assert "sql" not in distinct_tags
-    assert distinct_tags.count("SQL") == 1
+
+def test_multiple_tags_are_each_normalized_independently(client, good_auth):
+    # Seed data already has "SQL" and "Backend" (both used on post 2 and 4).
+    form = dict(NEW_POST_FORM)
+    form["tags"] = "sql, BACKEND"
+
+    client.post("/blog/new", data=form, auth=good_auth)
+    post_id = _post_id_by_title(form["title"])
+    assert _tags_for(post_id) == ["Backend", "SQL"]
 
 
 def test_new_post_tag_with_surrounding_whitespace_is_normalized(client, good_auth):
     form = dict(NEW_POST_FORM)
-    form["tag"] = "  SQL  "
+    form["tags"] = "  SQL  "
 
     response = client.post("/blog/new", data=form, auth=good_auth)
     assert response.status_code == 302
 
-    connection = db_module.get_db_connection()
-    row = connection.execute(
-        "SELECT tag FROM posts WHERE title = ?", (form["title"],)
-    ).fetchone()
-    connection.close()
-    assert row["tag"] == "SQL"
+    post_id = _post_id_by_title(form["title"])
+    assert _tags_for(post_id) == ["SQL"]
 
 
 def test_new_post_genuinely_new_tag_is_stored_as_typed(client, good_auth):
     form = dict(NEW_POST_FORM)
-    form["tag"] = "BrandNewTag"
+    form["tags"] = "BrandNewTag"
 
     response = client.post("/blog/new", data=form, auth=good_auth)
     assert response.status_code == 302
 
-    connection = db_module.get_db_connection()
-    row = connection.execute(
-        "SELECT tag FROM posts WHERE title = ?", (form["title"],)
-    ).fetchone()
-    connection.close()
-    assert row["tag"] == "BrandNewTag"
+    post_id = _post_id_by_title(form["title"])
+    assert _tags_for(post_id) == ["BrandNewTag"]
+
+
+def test_duplicate_tags_in_the_same_submission_collapse_to_one(client, good_auth):
+    form = dict(NEW_POST_FORM)
+    form["tags"] = "SQL, sql, SQL"
+
+    client.post("/blog/new", data=form, auth=good_auth)
+    post_id = _post_id_by_title(form["title"])
+    assert _tags_for(post_id) == ["SQL"]
 
 
 def test_edit_post_tag_normalized_to_match_existing_casing(client, good_auth):
@@ -201,26 +295,26 @@ def test_edit_post_tag_normalized_to_match_existing_casing(client, good_auth):
         data={
             "title": "Edited Title",
             "date": "2026-06-02",
-            "tag": "sql",
+            "tags": "sql",
             "excerpt": "Edited excerpt.",
             "body": "Edited body.",
         },
         auth=good_auth,
     )
     assert response.status_code == 302
+    assert _tags_for(1) == ["SQL"]
 
+
+def test_editing_a_posts_tags_never_changes_an_existing_tags_stored_casing(client, good_auth):
+    """Unlike the old single-column design, a tag is now a shared row that
+    other posts may also reference -- so retyping an existing tag with
+    different casing while editing one post must never silently rename it
+    for everyone else using that same tag. The first-seen casing sticks
+    until there's a dedicated rename action (there isn't one)."""
     connection = db_module.get_db_connection()
-    row = connection.execute("SELECT tag FROM posts WHERE id = 1").fetchone()
-    connection.close()
-    assert row["tag"] == "SQL"
-
-
-def test_edit_post_can_recase_its_own_unique_tag(client, good_auth):
-    # Give post 1 a tag no other post uses, then edit it to a different
-    # casing -- since it's not competing with any other post's tag, the
-    # newly typed casing should be honored, not silently reverted.
-    connection = db_module.get_db_connection()
-    connection.execute("UPDATE posts SET tag = 'Unique' WHERE id = 1")
+    connection.execute("DELETE FROM post_tags WHERE post_id = 1")
+    tag_id = connection.execute("INSERT INTO tags (name) VALUES ('Unique')").lastrowid
+    connection.execute("INSERT INTO post_tags (post_id, tag_id) VALUES (1, ?)", (tag_id,))
     connection.commit()
     connection.close()
 
@@ -229,18 +323,90 @@ def test_edit_post_can_recase_its_own_unique_tag(client, good_auth):
         data={
             "title": "Edited Title",
             "date": "2026-06-02",
-            "tag": "unique",
+            "tags": "unique",
             "excerpt": "Edited excerpt.",
             "body": "Edited body.",
         },
         auth=good_auth,
     )
     assert response.status_code == 302
+    assert _tags_for(1) == ["Unique"]
 
     connection = db_module.get_db_connection()
-    row = connection.execute("SELECT tag FROM posts WHERE id = 1").fetchone()
+    tag_row_count = connection.execute(
+        "SELECT COUNT(*) AS n FROM tags WHERE LOWER(name) = 'unique'"
+    ).fetchone()["n"]
     connection.close()
-    assert row["tag"] == "unique"
+    # No separate "unique" row was created alongside "Unique" either.
+    assert tag_row_count == 1
+
+
+def test_get_all_tags_excludes_tags_no_longer_used_by_any_post(client, good_auth):
+    # "Process" starts out used by post 1 -- retag it away, and "Process"
+    # should stop showing up as a filter option (unless another post still
+    # has it -- seed post 6 also has "Process", so give that one away too).
+    client.post(
+        "/blog/1/edit",
+        data={
+            "title": "Post 1",
+            "date": "2026-06-02",
+            "tags": "SQL",
+            "excerpt": "e",
+            "body": "b",
+        },
+        auth=good_auth,
+    )
+    client.post(
+        "/blog/6/edit",
+        data={
+            "title": "Post 6",
+            "date": "2026-07-24",
+            "tags": "Design",
+            "excerpt": "e",
+            "body": "b",
+        },
+        auth=good_auth,
+    )
+
+    response = client.get("/blog")
+    assert b">Process<" not in response.data
+
+
+# ---------------------------------------------------------------------------
+# Tag filtering (?tag=)
+# ---------------------------------------------------------------------------
+
+
+def test_tag_filter_returns_only_matching_posts(client):
+    response = client.get("/blog?tag=SQL")
+    assert response.status_code == 200
+    # Both SQL-tagged seed posts should be present...
+    assert b"My First Real SQL Query" in response.data
+    assert b"Turning a Hardcoded List Into a Database Table" in response.data
+    # ...but posts tagged something else (and not also SQL) should not be.
+    assert b"Designing a Grid That Doesn&#39;t Look Like a Spreadsheet" not in response.data
+
+
+def test_tag_filter_with_no_matches_shows_empty_state_not_error(client):
+    response = client.get("/blog?tag=NoSuchTagAtAll")
+    assert response.status_code == 200
+    assert b"No posts tagged" in response.data
+
+
+def test_post_with_multiple_tags_matches_filter_for_either_one(client):
+    # Seed post 2 has both "SQL" and "Backend" -- it should show up under
+    # a filter for either tag, not just one of them.
+    sql_filtered = client.get("/blog?tag=SQL")
+    backend_filtered = client.get("/blog?tag=Backend")
+    assert b"My First Real SQL Query" in sql_filtered.data
+    assert b"My First Real SQL Query" in backend_filtered.data
+
+
+def test_post_with_multiple_tags_appears_only_once_under_a_matching_filter(client):
+    # A post with several tags matching a JOIN-based filter query must not
+    # come back as duplicate rows.
+    response = client.get("/blog?tag=SQL")
+    assert response.data.count(b"My First Real SQL Query") == 1
 
 
 # ---------------------------------------------------------------------------
@@ -316,7 +482,7 @@ def test_pagination_links_preserve_active_tag_and_search_filters(client, good_au
     for i in range(6):
         form = dict(NEW_POST_FORM)
         form["title"] = f"Pager Post {i}"
-        form["tag"] = "PagerTest"
+        form["tags"] = "PagerTest"
         client.post("/blog/new", data=form, auth=good_auth)
 
     response = client.get("/blog?tag=PagerTest")

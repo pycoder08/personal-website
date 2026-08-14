@@ -11,7 +11,7 @@ VALID_IMAGE_BYTES = b"\x89PNG\r\n\x1a\n" + b"fake-but-good-enough-image-bytes" *
 NEW_POST_FORM = {
     "title": "A Markdown Test Post",
     "date": "2026-08-13",
-    "tag": "Backend",
+    "tags": "Backend",
     "excerpt": "Testing Markdown rendering.",
     "body": (
         "# A Heading\n\n"

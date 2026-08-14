@@ -322,6 +322,116 @@ def _ensure_video_schema():
 _ensure_video_schema()
 
 
+# ---------------------------------------------------------------------------
+# Blog tags: posts originally had one `tag` column, one tag per post. Moved
+# to a real many-to-many shape (`tags` + a `post_tags` join table) so a post
+# can carry several tags instead of exactly one. `post_tags` has real
+# foreign keys with ON DELETE CASCADE -- db.py already turns on
+# `PRAGMA foreign_keys`, so deleting a post automatically cleans up its tag
+# associations without a separate DELETE.
+#
+# Migration: the two new tables are safe to create unconditionally
+# (CREATE TABLE IF NOT EXISTS -- no risk to an already-migrated database).
+# If `posts.tag` still exists (old schema), each post's single tag is
+# copied into the new tables before the column is dropped via the same
+# rebuild-the-table approach used for the portfolio/video migrations above
+# -- SQLite can't drop a column on every version still in the wild.
+# ---------------------------------------------------------------------------
+def _get_or_create_tag_ids(connection, tag_names):
+    """Given raw typed tag names, return their tag_ids -- reusing an
+    existing tag's stored casing when a name matches case-insensitively
+    (the same typo-tolerance the old single-tag column had via
+    normalize_tag()), creating a new `tags` row only for genuinely new
+    names. Blank names are skipped; duplicate names (after normalization)
+    collapse to a single id, preserving the order they were first seen in."""
+    tag_ids = []
+    seen_ids = set()
+    for raw_name in tag_names:
+        name = raw_name.strip()
+        if not name:
+            continue
+        existing = connection.execute(
+            "SELECT id FROM tags WHERE LOWER(name) = LOWER(?)", (name,)
+        ).fetchone()
+        if existing:
+            tag_id = existing["id"]
+        else:
+            cursor = connection.execute("INSERT INTO tags (name) VALUES (?)", (name,))
+            tag_id = cursor.lastrowid
+        if tag_id not in seen_ids:
+            seen_ids.add(tag_id)
+            tag_ids.append(tag_id)
+    return tag_ids
+
+
+def _ensure_blog_tags_schema():
+    connection = get_db_connection()
+    connection.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS tags (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE COLLATE NOCASE
+        );
+        CREATE TABLE IF NOT EXISTS post_tags (
+            post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+            tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+            PRIMARY KEY (post_id, tag_id)
+        );
+        """
+    )
+    connection.commit()
+
+    posts_table_exists = (
+        connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'posts'"
+        ).fetchone()
+        is not None
+    )
+    if posts_table_exists:
+        columns = {row["name"] for row in connection.execute("PRAGMA table_info(posts)")}
+        if "tag" in columns:
+            # Capture each post's old tag *before* touching the posts table
+            # at all. post_tags.post_id has a real foreign key to posts(id)
+            # -- inserting into post_tags first and rebuilding posts
+            # afterward turned out to cascade-delete those rows the moment
+            # `DROP TABLE posts` ran (found via manual testing against real
+            # data, not just reasoning about it), even though the rename
+            # back to `posts` preserves the same ids. So: fetch now, rebuild
+            # the table, and only populate post_tags once the new `posts`
+            # table (with those same ids) already exists.
+            old_post_tags = [
+                (row["id"], row["tag"])
+                for row in connection.execute("SELECT id, tag FROM posts").fetchall()
+            ]
+            connection.executescript(
+                """
+                CREATE TABLE posts_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    date_iso TEXT NOT NULL,
+                    date_display TEXT NOT NULL,
+                    excerpt TEXT NOT NULL,
+                    body TEXT NOT NULL
+                );
+                INSERT INTO posts_new (id, title, date_iso, date_display, excerpt, body)
+                    SELECT id, title, date_iso, date_display, excerpt, body FROM posts;
+                DROP TABLE posts;
+                ALTER TABLE posts_new RENAME TO posts;
+                """
+            )
+            for post_id, tag_name in old_post_tags:
+                for tag_id in _get_or_create_tag_ids(connection, [tag_name]):
+                    connection.execute(
+                        "INSERT OR IGNORE INTO post_tags (post_id, tag_id) VALUES (?, ?)",
+                        (post_id, tag_id),
+                    )
+            connection.commit()
+    connection.close()
+
+
+_ensure_blog_tags_schema()
+
+
 def _has_allowed_image_extension(filename):
     """Real allowlist check against the actual file extension -- never trust
     a client-supplied Content-Type/MIME header for this."""
@@ -558,37 +668,82 @@ def _record_page_view(response):
 
 
 def get_all_tags():
+    """Every tag currently used by at least one post -- joining through
+    post_tags rather than reading `tags` directly means a tag row that's
+    no longer attached to any post (e.g. a post's only use of it was
+    edited away) quietly drops out of the filter bar / datalist instead
+    of lingering as a dead option."""
     connection = get_db_connection()
     tags = [
-        row["tag"]
+        row["name"]
         for row in connection.execute(
-            "SELECT DISTINCT tag FROM posts ORDER BY tag"
+            """
+            SELECT DISTINCT tags.name
+            FROM tags
+            JOIN post_tags ON post_tags.tag_id = tags.id
+            ORDER BY tags.name
+            """
         ).fetchall()
     ]
     connection.close()
     return tags
 
 
-def normalize_tag(connection, tag, exclude_post_id=None):
-    """Reduce accidental duplicate tags caused by typos in case or spacing.
+def get_tags_for_post(connection, post_id):
+    """A single post's tag names, alphabetical."""
+    return [
+        row["name"]
+        for row in connection.execute(
+            """
+            SELECT tags.name
+            FROM tags
+            JOIN post_tags ON post_tags.tag_id = tags.id
+            WHERE post_tags.post_id = ?
+            ORDER BY tags.name
+            """,
+            (post_id,),
+        ).fetchall()
+    ]
 
-    If an existing tag in `posts` matches `tag` case-insensitively (after
-    stripping whitespace on both sides), return that existing tag's exact
-    stored casing instead -- so typing "sql" when "SQL" already exists
-    reuses "SQL" rather than creating a near-duplicate "sql" tag. A
-    genuinely new tag is returned unchanged (already stripped by the
-    caller). `exclude_post_id` leaves the post currently being edited out
-    of the comparison, so a post that's the *only* one using a given tag
-    can still have that tag's own casing corrected.
-    """
-    query = "SELECT tag FROM posts WHERE LOWER(TRIM(tag)) = LOWER(?)"
-    params = [tag]
-    if exclude_post_id is not None:
-        query += " AND id != ?"
-        params.append(exclude_post_id)
-    query += " LIMIT 1"
-    existing = connection.execute(query, params).fetchone()
-    return existing["tag"] if existing else tag
+
+def get_tags_for_posts(connection, post_ids):
+    """Tag names for several posts at once (one query instead of one per
+    post) -- returns {post_id: [tag names, alphabetical]}, including an
+    empty list for any post_id with no tags."""
+    tags_by_post = {post_id: [] for post_id in post_ids}
+    if not post_ids:
+        return tags_by_post
+    placeholders = ",".join("?" * len(post_ids))
+    rows = connection.execute(
+        f"""
+        SELECT post_tags.post_id, tags.name
+        FROM post_tags
+        JOIN tags ON tags.id = post_tags.tag_id
+        WHERE post_tags.post_id IN ({placeholders})
+        ORDER BY tags.name
+        """,
+        post_ids,
+    ).fetchall()
+    for row in rows:
+        tags_by_post[row["post_id"]].append(row["name"])
+    return tags_by_post
+
+
+def set_tags_for_post(connection, post_id, tag_names):
+    """Replaces a post's entire tag set with `tag_names` -- simplest
+    correct approach (vs. diffing old/new) since a save always submits
+    the complete list, not an incremental change."""
+    connection.execute("DELETE FROM post_tags WHERE post_id = ?", (post_id,))
+    for tag_id in _get_or_create_tag_ids(connection, tag_names):
+        connection.execute(
+            "INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)", (post_id, tag_id)
+        )
+
+
+def parse_tag_list(raw_tags_field):
+    """Splits the comma-separated `tags` form field into a clean list,
+    stripping whitespace and dropping blanks (e.g. from a trailing comma)."""
+    return [t.strip() for t in raw_tags_field.split(",") if t.strip()]
 
 
 def format_display_date(date_iso):
@@ -910,32 +1065,48 @@ def blog_list():
     # Build the WHERE clause piece by piece -- every value that comes from
     # the querystring is still passed through as a parameterized `?`
     # placeholder, never string-formatted into the SQL itself.
+    #
+    # Filtering by tag now means "posts that have this tag among possibly
+    # several", so it needs a join through post_tags rather than a plain
+    # equality check on a single column -- DISTINCT keeps a post from
+    # appearing twice if it somehow matched more than one row of the join
+    # (it can't in practice, since post_tags has no duplicate (post_id,
+    # tag_id) pairs, but it costs nothing to be explicit about it).
+    from_clause = "FROM posts"
     conditions = []
     params = []
     if selected_tag:
-        conditions.append("tag = ?")
+        from_clause += (
+            " JOIN post_tags ON post_tags.post_id = posts.id"
+            " JOIN tags ON tags.id = post_tags.tag_id"
+        )
+        conditions.append("tags.name = ?")
         params.append(selected_tag)
     if search_query:
         like_pattern = f"%{search_query}%"
         # SQLite's LIKE is case-insensitive for ASCII by default, so this
         # covers "case-insensitive substring match" without extra LOWER()
         # calls on every row.
-        conditions.append("(title LIKE ? OR excerpt LIKE ? OR body LIKE ?)")
+        conditions.append("(posts.title LIKE ? OR posts.excerpt LIKE ? OR posts.body LIKE ?)")
         params.extend([like_pattern, like_pattern, like_pattern])
     where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
     connection = get_db_connection()
     total_posts = connection.execute(
-        f"SELECT COUNT(*) AS n FROM posts {where_clause}", params
+        f"SELECT COUNT(DISTINCT posts.id) AS n {from_clause} {where_clause}", params
     ).fetchone()["n"]
     total_pages = max(1, -(-total_posts // POSTS_PER_PAGE))  # ceiling division
     page = min(page, total_pages)
     offset = (page - 1) * POSTS_PER_PAGE
 
     posts = connection.execute(
-        f"SELECT * FROM posts {where_clause} ORDER BY date_iso DESC LIMIT ? OFFSET ?",
+        f"""
+        SELECT DISTINCT posts.* {from_clause} {where_clause}
+        ORDER BY posts.date_iso DESC LIMIT ? OFFSET ?
+        """,
         params + [POSTS_PER_PAGE, offset],
     ).fetchall()
+    tags_by_post = get_tags_for_posts(connection, [post["id"] for post in posts])
     connection.close()
 
     # Only the filters that are actually active get carried over into the
@@ -949,6 +1120,7 @@ def blog_list():
     return render_template(
         "blog_list.html",
         posts=posts,
+        tags_by_post=tags_by_post,
         tags=get_all_tags(),
         selected_tag=selected_tag,
         search_query=search_query,
@@ -966,12 +1138,12 @@ def blog_new():
     if request.method == "POST":
         title = request.form.get("title", "").strip()
         date_iso = request.form.get("date", "").strip()
-        tag = request.form.get("tag", "").strip()
+        tag_names = parse_tag_list(request.form.get("tags", ""))
         excerpt = request.form.get("excerpt", "").strip()
         body = request.form.get("body", "").strip()
 
         error = None
-        if not title or not date_iso or not tag or not excerpt or not body:
+        if not title or not date_iso or not tag_names or not excerpt or not body:
             error = "Please fill out every field before publishing."
         else:
             try:
@@ -989,14 +1161,14 @@ def blog_new():
             )
 
         connection = get_db_connection()
-        tag = normalize_tag(connection, tag)
-        connection.execute(
+        cursor = connection.execute(
             """
-            INSERT INTO posts (title, date_iso, date_display, tag, excerpt, body)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO posts (title, date_iso, date_display, excerpt, body)
+            VALUES (?, ?, ?, ?, ?)
             """,
-            (title, date_iso, date_display, tag, excerpt, body),
+            (title, date_iso, date_display, excerpt, body),
         )
+        set_tags_for_post(connection, cursor.lastrowid, tag_names)
         connection.commit()
         connection.close()
         flash("Post published.")
@@ -1013,11 +1185,13 @@ def blog_post(post_id):
     post = connection.execute(
         "SELECT * FROM posts WHERE id = ?", (post_id,)
     ).fetchone()
-    connection.close()
     if post is None:
+        connection.close()
         abort(404)
+    post_tags = get_tags_for_post(connection, post_id)
+    connection.close()
     return render_template(
-        "blog_post.html", post=post
+        "blog_post.html", post=post, post_tags=post_tags
     )
 
 
@@ -1035,12 +1209,12 @@ def blog_edit(post_id):
     if request.method == "POST":
         title = request.form.get("title", "").strip()
         date_iso = request.form.get("date", "").strip()
-        tag = request.form.get("tag", "").strip()
+        tag_names = parse_tag_list(request.form.get("tags", ""))
         excerpt = request.form.get("excerpt", "").strip()
         body = request.form.get("body", "").strip()
 
         error = None
-        if not title or not date_iso or not tag or not excerpt or not body:
+        if not title or not date_iso or not tag_names or not excerpt or not body:
             error = "Please fill out every field before saving."
         else:
             try:
@@ -1058,28 +1232,28 @@ def blog_edit(post_id):
                 post=post,
             )
 
-        tag = normalize_tag(connection, tag, exclude_post_id=post_id)
         connection.execute(
             """
             UPDATE posts
-            SET title = ?, date_iso = ?, date_display = ?, tag = ?, excerpt = ?, body = ?
+            SET title = ?, date_iso = ?, date_display = ?, excerpt = ?, body = ?
             WHERE id = ?
             """,
-            (title, date_iso, date_display, tag, excerpt, body, post_id),
+            (title, date_iso, date_display, excerpt, body, post_id),
         )
+        set_tags_for_post(connection, post_id, tag_names)
         connection.commit()
         connection.close()
         flash("Post updated.")
         return redirect(url_for("blog_post", post_id=post_id))
 
-    connection.close()
     form = {
         "title": post["title"],
         "date": post["date_iso"],
-        "tag": post["tag"],
+        "tags": ", ".join(get_tags_for_post(connection, post_id)),
         "excerpt": post["excerpt"],
         "body": post["body"],
     }
+    connection.close()
     return render_template(
         "blog_new.html", error=None, form=form, tags=get_all_tags(), post=post
     )

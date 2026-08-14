@@ -35,7 +35,9 @@
       <article class="card post-preview">
         <div class="post-meta">
           <time class="post-date">{{ post['date_display'] }}</time>
-          <a class="tag-badge" href="{{ url_for('blog_list', tag=post['tag']) }}">{{ post['tag'] }}</a>
+          {% for tag in tags_by_post[post['id']] %}
+          <a class="tag-badge" href="{{ url_for('blog_list', tag=tag) }}">{{ tag }}</a>
+          {% endfor %}
         </div>
         <h2><a href="{{ url_for('blog_post', post_id=post['id']) }}">{{ post['title'] }}</a></h2>
         <p>{{ post['excerpt'] }}</p>

@@ -27,13 +27,14 @@
       <label for="date">Date</label>
       <input type="date" id="date" name="date" value="{{ form.get('date', '') if form else '' }}" required>
 
-      <label for="tag">Tag</label>
-      <input type="text" id="tag" name="tag" list="tag-options" placeholder="e.g. SQL, Design, Backend" value="{{ form.get('tag', '') if form else '' }}" required>
+      <label for="tags">Tags</label>
+      <input type="text" id="tags" name="tags" list="tag-options" placeholder="e.g. SQL, Backend" value="{{ form.get('tags', '') if form else '' }}" required>
       <datalist id="tag-options">
         {% for tag in tags %}
         <option value="{{ tag }}">
         {% endfor %}
       </datalist>
+      <p class="form-hint">Comma-separated -- a post can have more than one tag. Retyping an existing tag (even with different casing) reuses it instead of creating a near-duplicate.</p>
 
       <label for="excerpt">Excerpt</label>
       <textarea id="excerpt" name="excerpt" rows="2" placeholder="A one or two sentence teaser for the blog list" required>{{ form.get('excerpt', '') if form else '' }}</textarea>
