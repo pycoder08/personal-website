@@ -50,9 +50,14 @@
       <input type="text" id="duration" name="duration" placeholder="e.g. 8:14" value="{{ form.get('duration', '') if form else '' }}">
       <p class="form-hint">Only needed if the link above isn't a YouTube link (or you left it blank) -- a YouTube duration overrides whatever's typed here.</p>
 
+      {% if video %}
+      <p class="form-hint">Currently {{ 'published' if video['is_published'] else 'saved as a draft -- not visible to visitors' }}.</p>
+      {% endif %}
+
       <div class="form-actions">
         <a class="btn btn-ghost" href="{{ url_for('video_detail', video_id=video['id']) if video else url_for('videos') }}">Cancel</a>
-        <button class="btn btn-primary" type="submit">{{ 'Save Changes' if video else 'Add Video' }}</button>
+        <button class="btn btn-ghost" type="submit" name="publish_state" value="draft">Save as Draft</button>
+        <button class="btn btn-primary" type="submit" name="publish_state" value="publish">{{ 'Save & Publish' if video else 'Add Video' }}</button>
       </div>
     </form>
   </section>

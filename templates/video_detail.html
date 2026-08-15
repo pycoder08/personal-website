@@ -10,6 +10,9 @@
   {% set yt_id = video['video_url'] | youtube_id %}
   <article class="section video-full">
     <a class="back-link" href="{{ url_for('videos') }}">&larr; Back to Videos</a>
+    {% if not video['is_published'] %}
+    <div class="draft-banner">This video is a draft -- only visible to you.</div>
+    {% endif %}
 
     {% if yt_id %}
     <div class="video-embed">

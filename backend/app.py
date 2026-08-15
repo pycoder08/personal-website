@@ -432,6 +432,50 @@ def _ensure_blog_tags_schema():
 _ensure_blog_tags_schema()
 
 
+# ---------------------------------------------------------------------------
+# Drafts: posts, portfolio_items, and videos can each be saved as a
+# non-public draft instead of published right away -- same is_published
+# flag and the same "hidden from public list/detail pages, still visible
+# (with a Draft badge) to the logged-in admin" behavior for all three, so
+# one parameterized migration covers all three tables instead of three
+# near-identical functions. Existing rows default to published (1) so
+# nothing already live quietly disappears the moment this deploys.
+# ---------------------------------------------------------------------------
+def _ensure_is_published_column(table_name):
+    connection = get_db_connection()
+    table_exists = (
+        connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", (table_name,)
+        ).fetchone()
+        is not None
+    )
+    if table_exists:
+        columns = {row["name"] for row in connection.execute(f"PRAGMA table_info({table_name})")}
+        if "is_published" not in columns:
+            connection.execute(
+                f"ALTER TABLE {table_name} ADD COLUMN is_published INTEGER NOT NULL DEFAULT 1"
+            )
+            connection.commit()
+    connection.close()
+
+
+for _draft_table in ("posts", "portfolio_items", "videos"):
+    _ensure_is_published_column(_draft_table)
+
+
+def _is_published_from_form():
+    """Both the New/Edit forms below post two possible submit buttons --
+    Publish (publish_state=publish) and Save as Draft
+    (publish_state=draft). Deliberately not named "action": a form field
+    named "action" shadows HTMLFormElement's own `action` property in at
+    least one browser engine (confirmed while testing this feature),
+    silently breaking the form's real submission target. Anything other
+    than exactly "draft" (including a missing field, e.g. an old cached
+    form) is treated as publish, matching the single-button behavior
+    these forms had before drafts existed."""
+    return request.form.get("publish_state", "publish") != "draft"
+
+
 def _has_allowed_image_extension(filename):
     """Real allowlist check against the actual file extension -- never trust
     a client-supplied Content-Type/MIME header for this."""
@@ -667,24 +711,28 @@ def _record_page_view(response):
     return response
 
 
-def get_all_tags():
-    """Every tag currently used by at least one post -- joining through
-    post_tags rather than reading `tags` directly means a tag row that's
-    no longer attached to any post (e.g. a post's only use of it was
-    edited away) quietly drops out of the filter bar / datalist instead
-    of lingering as a dead option."""
+def get_all_tags(include_drafts=False):
+    """Every tag currently used by at least one (visible) post -- joining
+    through post_tags rather than reading `tags` directly means a tag row
+    that's no longer attached to any post (e.g. a post's only use of it
+    was edited away) quietly drops out of the filter bar / datalist
+    instead of lingering as a dead option.
+
+    include_drafts=False (the default, used for anonymous visitors) also
+    excludes tags that are only used by draft posts, so the public filter
+    bar never hints at a post that doesn't exist yet as far as a visitor
+    is concerned. The admin's own forms/list pass include_drafts=True so
+    a tag only used on a draft is still there to autocomplete or filter by."""
     connection = get_db_connection()
-    tags = [
-        row["name"]
-        for row in connection.execute(
-            """
-            SELECT DISTINCT tags.name
-            FROM tags
-            JOIN post_tags ON post_tags.tag_id = tags.id
-            ORDER BY tags.name
-            """
-        ).fetchall()
-    ]
+    query = """
+        SELECT DISTINCT tags.name
+        FROM tags
+        JOIN post_tags ON post_tags.tag_id = tags.id
+    """
+    if not include_drafts:
+        query += " JOIN posts ON posts.id = post_tags.post_id AND posts.is_published = 1"
+    query += " ORDER BY tags.name"
+    tags = [row["name"] for row in connection.execute(query).fetchall()]
     connection.close()
     return tags
 
@@ -800,21 +848,25 @@ app.jinja_env.filters["youtube_id"] = youtube_video_id
 
 @app.route("/")
 def home():
+    # Drafts never show on the homepage highlights, even to the logged-in
+    # admin -- this section is meant as a showcase of what's actually live,
+    # and a draft only has a real place there once it's published. The
+    # admin can still see/manage drafts on each tab's own list page.
     connection = get_db_connection()
     recent_posts = connection.execute(
-        "SELECT * FROM posts ORDER BY date_iso DESC LIMIT 3"
+        "SELECT * FROM posts WHERE is_published = 1 ORDER BY date_iso DESC LIMIT 3"
     ).fetchall()
     # Featured Work and Recent Videos sit side by side on the homepage
     # (see index.html), so 2 apiece keeps the pair visually balanced --
     # each still links to its full page for the rest.
     featured_items = connection.execute(
-        "SELECT * FROM portfolio_items ORDER BY pinned DESC, id ASC LIMIT 2"
+        "SELECT * FROM portfolio_items WHERE is_published = 1 ORDER BY pinned DESC, id ASC LIMIT 2"
     ).fetchall()
     # Videos have no publish-date column to sort by (unlike posts), so
     # highest id -- the most recently added row -- is the closest proxy
     # for "recent".
     recent_videos = connection.execute(
-        "SELECT * FROM videos ORDER BY id DESC LIMIT 2"
+        "SELECT * FROM videos WHERE is_published = 1 ORDER BY id DESC LIMIT 2"
     ).fetchall()
     connection.close()
     return render_template(
@@ -828,9 +880,14 @@ def home():
 @app.route("/portfolio")
 def portfolio():
     connection = get_db_connection()
-    items = connection.execute(
-        "SELECT * FROM portfolio_items ORDER BY pinned DESC, id ASC"
-    ).fetchall()
+    if is_authenticated():
+        items = connection.execute(
+            "SELECT * FROM portfolio_items ORDER BY pinned DESC, id ASC"
+        ).fetchall()
+    else:
+        items = connection.execute(
+            "SELECT * FROM portfolio_items WHERE is_published = 1 ORDER BY pinned DESC, id ASC"
+        ).fetchall()
     connection.close()
     return render_template(
         "portfolio.html", items=items
@@ -869,14 +926,15 @@ def portfolio_new():
             )
 
         image_filename = save_portfolio_image(image_file) if has_upload else None
+        is_published = _is_published_from_form()
 
         try:
             connection = get_db_connection()
-            connection.execute(
+            cursor = connection.execute(
                 """
                 INSERT INTO portfolio_items
-                    (title, excerpt, body, color_start, color_end, image_filename, project_url, thumbnail_fit, thumbnail_position)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (title, excerpt, body, color_start, color_end, image_filename, project_url, thumbnail_fit, thumbnail_position, is_published)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     title,
@@ -888,6 +946,7 @@ def portfolio_new():
                     project_url,
                     thumbnail_fit,
                     thumbnail_position,
+                    int(is_published),
                 ),
             )
             connection.commit()
@@ -896,8 +955,10 @@ def portfolio_new():
             # Don't leave an orphaned file on disk if the database write failed.
             delete_portfolio_image(image_filename)
             raise
-        flash("Project added.")
-        return redirect(url_for("portfolio"))
+        flash("Project added." if is_published else "Project saved as a draft.")
+        if is_published:
+            return redirect(url_for("portfolio"))
+        return redirect(url_for("portfolio_detail", item_id=cursor.lastrowid))
 
     return render_template("portfolio_form.html", error=None, form={}, item=None)
 
@@ -909,7 +970,10 @@ def portfolio_detail(item_id):
         "SELECT * FROM portfolio_items WHERE id = ?", (item_id,)
     ).fetchone()
     connection.close()
-    if item is None:
+    # A draft's detail page 404s for anyone without admin credentials --
+    # same as it not existing at all, rather than showing but marking it
+    # "draft," so a direct link to an unfinished project can't leak.
+    if item is None or (not item["is_published"] and not is_authenticated()):
         abort(404)
     return render_template("portfolio_detail.html", item=item)
 
@@ -958,6 +1022,7 @@ def portfolio_edit(item_id):
         image_filename = old_image_filename
         if has_upload:
             image_filename = save_portfolio_image(image_file)
+        is_published = _is_published_from_form()
 
         try:
             # Colors are intentionally left untouched here -- new projects
@@ -966,7 +1031,7 @@ def portfolio_edit(item_id):
             connection.execute(
                 """
                 UPDATE portfolio_items
-                SET title = ?, excerpt = ?, body = ?, image_filename = ?, project_url = ?, thumbnail_fit = ?, thumbnail_position = ?
+                SET title = ?, excerpt = ?, body = ?, image_filename = ?, project_url = ?, thumbnail_fit = ?, thumbnail_position = ?, is_published = ?
                 WHERE id = ?
                 """,
                 (
@@ -977,6 +1042,7 @@ def portfolio_edit(item_id):
                     project_url,
                     thumbnail_fit,
                     thumbnail_position,
+                    int(is_published),
                     item_id,
                 ),
             )
@@ -991,7 +1057,7 @@ def portfolio_edit(item_id):
         # Only remove the old file once the new row has actually been saved.
         if has_upload:
             delete_portfolio_image(old_image_filename)
-        flash("Project updated.")
+        flash("Project updated." if is_published else "Project saved as a draft.")
         return redirect(url_for("portfolio_detail", item_id=item_id))
 
     connection.close()
@@ -1075,6 +1141,8 @@ def blog_list():
     from_clause = "FROM posts"
     conditions = []
     params = []
+    if not is_authenticated():
+        conditions.append("posts.is_published = 1")
     if selected_tag:
         from_clause += (
             " JOIN post_tags ON post_tags.post_id = posts.id"
@@ -1121,7 +1189,7 @@ def blog_list():
         "blog_list.html",
         posts=posts,
         tags_by_post=tags_by_post,
-        tags=get_all_tags(),
+        tags=get_all_tags(include_drafts=is_authenticated()),
         selected_tag=selected_tag,
         search_query=search_query,
         page=page,
@@ -1156,26 +1224,27 @@ def blog_new():
                 "blog_new.html",
                 error=error,
                 form=request.form,
-                tags=get_all_tags(),
+                tags=get_all_tags(include_drafts=True),
                 post=None,
             )
 
+        is_published = _is_published_from_form()
         connection = get_db_connection()
         cursor = connection.execute(
             """
-            INSERT INTO posts (title, date_iso, date_display, excerpt, body)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO posts (title, date_iso, date_display, excerpt, body, is_published)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (title, date_iso, date_display, excerpt, body),
+            (title, date_iso, date_display, excerpt, body, int(is_published)),
         )
         set_tags_for_post(connection, cursor.lastrowid, tag_names)
         connection.commit()
         connection.close()
-        flash("Post published.")
-        return redirect(url_for("blog_list"))
+        flash("Post published." if is_published else "Post saved as a draft.")
+        return redirect(url_for("blog_list") if is_published else url_for("blog_post", post_id=cursor.lastrowid))
 
     return render_template(
-        "blog_new.html", error=None, form={}, tags=get_all_tags(), post=None
+        "blog_new.html", error=None, form={}, tags=get_all_tags(include_drafts=True), post=None
     )
 
 
@@ -1185,7 +1254,10 @@ def blog_post(post_id):
     post = connection.execute(
         "SELECT * FROM posts WHERE id = ?", (post_id,)
     ).fetchone()
-    if post is None:
+    # A draft's detail page 404s for anyone without admin credentials --
+    # same as it not existing at all, rather than showing but marking it
+    # "draft," so a direct link to an unpublished post can't leak.
+    if post is None or (not post["is_published"] and not is_authenticated()):
         connection.close()
         abort(404)
     post_tags = get_tags_for_post(connection, post_id)
@@ -1228,22 +1300,23 @@ def blog_edit(post_id):
                 "blog_new.html",
                 error=error,
                 form=request.form,
-                tags=get_all_tags(),
+                tags=get_all_tags(include_drafts=True),
                 post=post,
             )
 
+        is_published = _is_published_from_form()
         connection.execute(
             """
             UPDATE posts
-            SET title = ?, date_iso = ?, date_display = ?, excerpt = ?, body = ?
+            SET title = ?, date_iso = ?, date_display = ?, excerpt = ?, body = ?, is_published = ?
             WHERE id = ?
             """,
-            (title, date_iso, date_display, excerpt, body, post_id),
+            (title, date_iso, date_display, excerpt, body, int(is_published), post_id),
         )
         set_tags_for_post(connection, post_id, tag_names)
         connection.commit()
         connection.close()
-        flash("Post updated.")
+        flash("Post updated." if is_published else "Post saved as a draft.")
         return redirect(url_for("blog_post", post_id=post_id))
 
     form = {
@@ -1255,7 +1328,7 @@ def blog_edit(post_id):
     }
     connection.close()
     return render_template(
-        "blog_new.html", error=None, form=form, tags=get_all_tags(), post=post
+        "blog_new.html", error=None, form=form, tags=get_all_tags(include_drafts=True), post=post
     )
 
 
@@ -1279,7 +1352,12 @@ def blog_delete(post_id):
 @app.route("/videos")
 def videos():
     connection = get_db_connection()
-    all_videos = connection.execute("SELECT * FROM videos ORDER BY id").fetchall()
+    if is_authenticated():
+        all_videos = connection.execute("SELECT * FROM videos ORDER BY id").fetchall()
+    else:
+        all_videos = connection.execute(
+            "SELECT * FROM videos WHERE is_published = 1 ORDER BY id"
+        ).fetchall()
     connection.close()
     return render_template(
         "videos.html", videos=all_videos
@@ -1318,11 +1396,12 @@ def video_new():
                 "video_form.html", error=error, form=request.form, video=None
             )
 
+        is_published = _is_published_from_form()
         connection = get_db_connection()
-        connection.execute(
+        cursor = connection.execute(
             """
-            INSERT INTO videos (title, excerpt, body, duration, color_start, color_end, video_url)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO videos (title, excerpt, body, duration, color_start, color_end, video_url, is_published)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 title,
@@ -1332,12 +1411,16 @@ def video_new():
                 DEFAULT_VIDEO_COLOR_START,
                 DEFAULT_VIDEO_COLOR_END,
                 video_url,
+                int(is_published),
             ),
         )
         connection.commit()
         connection.close()
-        flash(f"Video added -- duration detected automatically ({duration})." if detected else "Video added.")
-        return redirect(url_for("videos"))
+        if not is_published:
+            flash("Video saved as a draft.")
+        else:
+            flash(f"Video added -- duration detected automatically ({duration})." if detected else "Video added.")
+        return redirect(url_for("videos") if is_published else url_for("video_detail", video_id=cursor.lastrowid))
 
     return render_template("video_form.html", error=None, form={}, video=None)
 
@@ -1349,7 +1432,10 @@ def video_detail(video_id):
         "SELECT * FROM videos WHERE id = ?", (video_id,)
     ).fetchone()
     connection.close()
-    if video is None:
+    # A draft's detail page 404s for anyone without admin credentials --
+    # same as it not existing at all, rather than showing but marking it
+    # "draft," so a direct link to an unpublished video can't leak.
+    if video is None or (not video["is_published"] and not is_authenticated()):
         abort(404)
     return render_template(
         "video_detail.html", video=video
@@ -1400,17 +1486,21 @@ def video_edit(video_id):
         # Colors are intentionally left untouched here -- new videos get a
         # standardized gradient (see video_new), but editing never changes
         # a video's existing colors.
+        is_published = _is_published_from_form()
         connection.execute(
             """
             UPDATE videos
-            SET title = ?, excerpt = ?, body = ?, duration = ?, video_url = ?
+            SET title = ?, excerpt = ?, body = ?, duration = ?, video_url = ?, is_published = ?
             WHERE id = ?
             """,
-            (title, excerpt, body, duration, video_url, video_id),
+            (title, excerpt, body, duration, video_url, int(is_published), video_id),
         )
         connection.commit()
         connection.close()
-        flash(f"Video updated -- duration detected automatically ({duration})." if detected else "Video updated.")
+        if not is_published:
+            flash("Video saved as a draft.")
+        else:
+            flash(f"Video updated -- duration detected automatically ({duration})." if detected else "Video updated.")
         return redirect(url_for("video_detail", video_id=video_id))
 
     connection.close()

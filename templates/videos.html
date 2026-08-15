@@ -29,6 +29,9 @@
         </a>
         <div class="card-body">
           <h3><a class="video-title-link" href="{{ url_for('video_detail', video_id=video['id']) }}">{{ video['title'] }}</a></h3>
+          {% if not video['is_published'] %}
+          <span class="draft-badge">Draft</span>
+          {% endif %}
           <p>{{ video['excerpt'] }}</p>
           {% if is_authenticated %}
           <div class="card-actions">

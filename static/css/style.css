@@ -647,6 +647,31 @@ code {
   color: #fff;
 }
 
+/* Draft indicator -- amber like the preview-mode banner, deliberately a
+   different color from tag-badge's primary blue so "unpublished" reads
+   as a status, not just another tag. */
+.draft-badge {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  border: 1px solid var(--accent-dark);
+  color: var(--accent-dark);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.draft-banner {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  border: 1px solid var(--accent-dark);
+  color: var(--accent-dark);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+}
+
 .post-preview h2,
 .post-preview h3 {
   margin-bottom: 0.5rem;

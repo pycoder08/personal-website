@@ -367,7 +367,8 @@ SCHEMA_SCRIPT = """
         date_iso TEXT NOT NULL,
         date_display TEXT NOT NULL,
         excerpt TEXT NOT NULL,
-        body TEXT NOT NULL
+        body TEXT NOT NULL,
+        is_published INTEGER NOT NULL DEFAULT 1
     );
 
     CREATE TABLE tags (
@@ -392,7 +393,8 @@ SCHEMA_SCRIPT = """
         project_url TEXT,
         pinned INTEGER NOT NULL DEFAULT 0,
         thumbnail_fit TEXT NOT NULL DEFAULT 'cover',
-        thumbnail_position TEXT NOT NULL DEFAULT 'center'
+        thumbnail_position TEXT NOT NULL DEFAULT 'center',
+        is_published INTEGER NOT NULL DEFAULT 1
     );
 
     CREATE TABLE videos (
@@ -403,7 +405,8 @@ SCHEMA_SCRIPT = """
         duration TEXT NOT NULL,
         color_start TEXT NOT NULL,
         color_end TEXT NOT NULL,
-        video_url TEXT
+        video_url TEXT,
+        is_published INTEGER NOT NULL DEFAULT 1
     );
 
     CREATE TABLE page_views (

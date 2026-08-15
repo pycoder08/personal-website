@@ -54,9 +54,14 @@
       <textarea id="body" name="body" rows="10" placeholder="The full post, in Markdown -- headers, **bold**, links, lists, code blocks, and images all work." required>{{ form.get('body', '') if form else '' }}</textarea>
       <p class="form-hint">Written in Markdown -- use the toolbar above to insert formatting, or the Image button to upload and insert a photo directly. (Prefer a plain link and URL? <a href="{{ url_for('admin_upload_image') }}" target="_blank" rel="noopener noreferrer">Upload one here</a> instead.)</p>
 
+      {% if post %}
+      <p class="form-hint">Currently {{ 'published' if post['is_published'] else 'saved as a draft -- not visible to visitors' }}.</p>
+      {% endif %}
+
       <div class="form-actions">
         <a class="btn btn-ghost" href="{{ url_for('blog_post', post_id=post['id']) if post else url_for('blog_list') }}">Cancel</a>
-        <button class="btn btn-primary" type="submit">{{ 'Save Changes' if post else 'Publish Post' }}</button>
+        <button class="btn btn-ghost" type="submit" name="publish_state" value="draft">Save as Draft</button>
+        <button class="btn btn-primary" type="submit" name="publish_state" value="publish">{{ 'Save & Publish' if post else 'Publish Post' }}</button>
       </div>
     </form>
   </section>

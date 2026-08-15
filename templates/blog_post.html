@@ -9,6 +9,9 @@
 
   <article class="section post-full">
     <a class="back-link" href="{{ url_for('blog_list') }}">&larr; Back to Blog</a>
+    {% if not post['is_published'] %}
+    <div class="draft-banner">This post is a draft -- only visible to you.</div>
+    {% endif %}
     <div class="post-meta">
       <time class="post-date">{{ post['date_display'] }}</time>
       {% for tag in post_tags %}

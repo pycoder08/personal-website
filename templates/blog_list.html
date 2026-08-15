@@ -35,6 +35,9 @@
       <article class="card post-preview">
         <div class="post-meta">
           <time class="post-date">{{ post['date_display'] }}</time>
+          {% if not post['is_published'] %}
+          <span class="draft-badge">Draft</span>
+          {% endif %}
           {% for tag in tags_by_post[post['id']] %}
           <a class="tag-badge" href="{{ url_for('blog_list', tag=tag) }}">{{ tag }}</a>
           {% endfor %}
